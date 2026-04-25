@@ -1,0 +1,1863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relocation Scorer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0b0f;--surf:#111118;--surf2:#181820;--border:#22222e;
+  --accent:#e8ff47;--blue:#47c4ff;--purple:#b47bff;--green:#4dff91;--red:#ff6b6b;--orange:#ffb347;
+  --text:#eff0f8;--dim:#a0a0c0;--muted:#55556a;
+  --r:8px;--r2:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(232,255,71,.04),transparent);}
+#root{position:relative;z-index:1;min-height:100vh;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* ── Typography ── */
+.mono{font-family:'DM Mono',monospace;}
+.label{font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+h1{font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:800;letter-spacing:-.03em;line-height:1.1;}
+h2{font-size:1.1rem;font-weight:700;letter-spacing:-.02em;}
+h3{font-size:.85rem;font-weight:700;}
+
+/* ── Layout ── */
+.page{min-height:100vh;display:flex;flex-direction:column;}
+.app-header{padding:20px 32px 0;border-bottom:1px solid var(--border);flex-shrink:0;}
+.app-body{flex:1;overflow:hidden;}
+
+/* ── Wizard steps ── */
+.step-bar{display:flex;align-items:center;gap:0;margin-bottom:20px;}
+.step-item{display:flex;align-items:center;gap:8px;padding:10px 16px;font-family:'DM Mono',monospace;font-size:.65rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
+.step-item.active{color:var(--accent);border-bottom-color:var(--accent);}
+.step-item.done{color:var(--green);border-bottom-color:rgba(77,255,145,.4);}
+.step-item.locked{pointer-events:none;}
+.step-num{width:20px;height:20px;border-radius:50%;border:1px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:.6rem;flex-shrink:0;}
+.step-item.done .step-num{background:var(--green);color:var(--bg);border-color:var(--green);}
+
+/* ── Buttons ── */
+.btn{padding:10px 20px;border-radius:var(--r);font-family:'Syne',sans-serif;font-weight:700;font-size:.8rem;cursor:pointer;border:none;transition:all .15s;display:inline-flex;align-items:center;gap:8px;}
+.btn-primary{background:var(--accent);color:var(--bg);}
+.btn-primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 20px rgba(232,255,71,.25);}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+.btn-ghost{background:transparent;color:var(--dim);border:1px solid var(--border);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--text);}
+.btn-danger{background:rgba(255,107,107,.1);color:var(--red);border:1px solid rgba(255,107,107,.25);}
+.btn-danger:hover{background:rgba(255,107,107,.2);}
+.btn-sm{padding:5px 11px;font-size:.7rem;}
+.btn-add{background:rgba(232,255,71,.08);color:var(--accent);border:1px solid rgba(232,255,71,.25);}
+.btn-add:hover{background:rgba(232,255,71,.14);}
+
+/* ── Inputs ── */
+.input{background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:9px 12px;color:var(--text);font-family:'DM Mono',monospace;font-size:.78rem;outline:none;width:100%;transition:border-color .15s;}
+.input:focus{border-color:rgba(232,255,71,.4);}
+.input::placeholder{color:var(--muted);}
+.input-group{display:flex;flex-direction:column;gap:5px;}
+.input-label{font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);}
+
+/* ── Autocomplete ── */
+.autocomplete-wrap{position:relative;}
+.ac-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);z-index:200;max-height:220px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.6);overscroll-behavior:contain;}
+.ac-item{display:flex;align-items:center;gap:10px;padding:9px 12px;cursor:pointer;font-size:.82rem;transition:background .1s;}
+.ac-item:hover,.ac-item.selected{background:rgba(255,255,255,.06);}
+.ac-flag{font-size:1.1rem;flex-shrink:0;}
+.ac-main{flex:1;}
+.ac-city{font-weight:600;}
+.ac-country{font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);margin-top:1px;}
+.ac-empty{padding:12px;font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted);text-align:center;}
+
+/* ── Cards ── */
+.card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r2);padding:20px;}
+.card-sm{background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;}
+
+/* ── Tags / pills ── */
+.tag{display:inline-flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:.65rem;padding:4px 10px;border-radius:20px;border:1px solid var(--border);color:var(--dim);}
+.tag-y{border-color:rgba(232,255,71,.3);color:var(--accent);}
+.tag-b{border-color:rgba(71,196,255,.3);color:var(--blue);}
+.tag-g{border-color:rgba(77,255,145,.3);color:var(--green);}
+.tag-remove{cursor:pointer;opacity:.6;margin-left:2px;font-size:.7rem;}
+.tag-remove:hover{opacity:1;}
+
+/* ── Pill status ── */
+.pill{display:inline-flex;align-items:center;gap:5px;font-family:'DM Mono',monospace;font-size:.6rem;padding:2px 8px;border-radius:20px;border:1px solid var(--border);color:var(--muted);}
+.pill-ok{border-color:rgba(77,255,145,.4);color:var(--green);}
+.pill-err{border-color:rgba(255,107,107,.4);color:var(--red);}
+.pill-busy{border-color:rgba(71,196,255,.4);color:var(--blue);}
+.pill-dot{width:5px;height:5px;border-radius:50%;background:currentColor;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.blink{animation:blink 1s ease-in-out infinite;}
+
+/* ── Slider ── */
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:3px;background:var(--border);border-radius:2px;outline:none;cursor:pointer;min-width:0;display:block;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer;box-shadow:0 0 6px rgba(232,255,71,.4);}
+
+/* ── Grid ── */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+
+/* ── Step 1: Setup ── */
+.setup-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:24px 32px;overflow-y:auto;height:calc(100vh - 108px);}
+.setup-section-title{font-size:.65rem;font-family:'DM Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
+
+/* ── Step 2: Priorities ── */
+.priorities-layout{display:grid;grid-template-columns:300px 1fr;height:calc(100vh - 108px);overflow:hidden;}
+.weights-scroll{overflow-y:auto;padding:20px 16px;border-right:1px solid var(--border);}
+.weights-cat{margin-bottom:18px;padding-bottom:18px;border-bottom:1px solid var(--border);}
+.weights-cat:last-child{border-bottom:none;margin-bottom:0;}
+.weights-cat-title{display:flex;align-items:center;gap:6px;font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#8888aa;margin-bottom:10px;}
+.weight-type{font-family:'DM Mono',monospace;font-size:.5rem;padding:1px 6px;border-radius:3px;}
+.wt-live{background:rgba(71,196,255,.1);color:var(--blue);border:1px solid rgba(71,196,255,.25);}
+.wt-calc{background:rgba(180,123,255,.1);color:var(--purple);border:1px solid rgba(180,123,255,.25);}
+.wt-data{background:rgba(255,179,71,.1);color:var(--orange);border:1px solid rgba(255,179,71,.25);}
+.weight-row{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+.weight-label{font-size:.72rem;color:var(--dim);flex:1;}
+.weight-num{font-family:'DM Mono',monospace;font-size:.7rem;color:var(--accent);width:14px;text-align:right;flex-shrink:0;}
+.preview-scroll{overflow-y:auto;padding:20px;}
+
+/* ── Step 3: Output ── */
+.output-layout{display:grid;grid-template-columns:1fr 1fr;gap:0;height:calc(100vh - 108px);overflow:hidden;}
+.output-left{overflow-y:auto;padding:20px;border-right:1px solid var(--border);}
+.output-right{overflow-y:auto;padding:20px;}
+.output-tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid var(--border);}
+.ot{font-family:'DM Mono',monospace;font-size:.65rem;padding:8px 14px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;transition:all .15s;text-transform:uppercase;letter-spacing:.05em;}
+.ot.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* ── City card (results) ── */
+.city-result-card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r2);padding:16px;margin-bottom:10px;cursor:pointer;position:relative;overflow:hidden;transition:border-color .2s;}
+.city-result-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--border);transition:background .3s;}
+.city-result-card.rank1::before{background:var(--accent);box-shadow:0 0 10px rgba(232,255,71,.4);}
+.city-result-card.rank2::before{background:var(--blue);}
+.city-result-card.rank3::before{background:var(--purple);}
+.card-header-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.card-rank-num{font-family:'DM Mono',monospace;font-size:.68rem;color:var(--muted);width:22px;}
+.rank1 .card-rank-num{color:var(--accent);}
+.rank2 .card-rank-num{color:var(--blue);}
+.rank3 .card-rank-num{color:var(--purple);}
+.card-city-name{font-size:.98rem;font-weight:700;flex:1;}
+.card-total{font-family:'DM Mono',monospace;font-size:1.1rem;font-weight:500;color:var(--accent);}
+.expand-arrow{color:var(--muted);font-size:.75rem;}
+.bar-track{height:3px;background:var(--surf2);border-radius:2px;margin-bottom:12px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:2px;transition:width .6s cubic-bezier(.34,1.2,.64,1);}
+.rank1 .bar-fill{background:linear-gradient(90deg,var(--accent),#c8ef00);}
+.rank2 .bar-fill{background:linear-gradient(90deg,var(--blue),#80dfff);}
+.rank3 .bar-fill{background:linear-gradient(90deg,var(--purple),#d0a0ff);}
+.city-result-card:not(.rank1):not(.rank2):not(.rank3) .bar-fill{background:#444;}
+.metric-chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:5px;}
+.mchip{background:var(--surf2);border:1px solid var(--border);border-radius:5px;padding:4px 7px;position:relative;min-width:0;}
+.mchip-dot{position:absolute;top:3px;right:4px;width:4px;height:4px;border-radius:50%;}
+.mchip.live{border-color:rgba(71,196,255,.22);}
+.mchip.calc{border-color:rgba(180,123,255,.22);}
+.mchip.hi{border-color:rgba(77,255,145,.28);}
+.mchip.lo{border-color:rgba(255,107,107,.28);}
+.mchip-key{font-family:'DM Mono',monospace;font-size:.53rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mchip-val{font-size:.82rem;font-weight:700;}
+.mchip-val.hi{color:var(--green);}
+.mchip-val.lo{color:var(--red);}
+.mchip-raw{font-family:'DM Mono',monospace;font-size:.52rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.legend-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);}
+.legend-item{display:flex;align-items:center;gap:4px;}
+.ldot{width:6px;height:6px;border-radius:50%;}
+
+/* ── Summary/charts ── */
+.winner-banner{background:linear-gradient(135deg,rgba(232,255,71,.07),rgba(71,196,255,.04));border:1px solid rgba(232,255,71,.25);border-radius:var(--r2);padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:14px;}
+.winner-flag{font-size:42px;line-height:1;}
+.winner-score{font-family:'DM Mono',monospace;font-size:1.4rem;font-weight:500;color:var(--accent);}
+.summary-table{width:100%;border-collapse:collapse;font-size:.76rem;}
+.summary-table th{font-family:'DM Mono',monospace;font-size:.57rem;color:var(--muted);padding:6px 9px;text-align:left;border-bottom:1px solid var(--border);font-weight:400;}
+.summary-table th:not(:first-child){text-align:right;}
+.summary-table td{padding:7px 9px;border-bottom:1px solid rgba(34,34,46,.5);vertical-align:middle;}
+.summary-table td:not(:first-child){text-align:right;}
+.summary-table tr:hover td{background:rgba(255,255,255,.02);}
+.mini-bar-wrap{display:flex;align-items:center;gap:5px;justify-content:flex-end;}
+.mini-bar-bg{width:40px;height:3px;background:var(--surf2);border-radius:2px;overflow:hidden;}
+.mini-bar-fill{height:100%;border-radius:2px;}
+
+/* ── Metrics detail ── */
+.metric-list-wrap{display:grid;grid-template-columns:190px 1fr;height:100%;overflow:hidden;}
+.metric-list-inner{overflow-y:auto;padding:12px 8px;border-right:1px solid var(--border);}
+.ml-cat{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin:10px 4px 5px;padding-bottom:3px;border-bottom:1px solid var(--border);}
+.ml-item{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:4px;cursor:pointer;font-size:.73rem;color:var(--muted);transition:all .1s;margin-bottom:2px;}
+.ml-item:hover,.ml-item.active{background:var(--surf2);color:var(--text);border:1px solid var(--border);}
+.ml-item:not(.active):not(:hover){border:1px solid transparent;}
+.metric-detail-inner{overflow-y:auto;padding:20px 22px;}
+.detail-source-link{font-family:'DM Mono',monospace;font-size:.63rem;color:var(--blue);text-decoration:none;border-bottom:1px solid rgba(71,196,255,.3);}
+.logic-box{background:rgba(232,255,71,.04);border:1px solid rgba(232,255,71,.15);border-radius:var(--r);padding:11px 13px;margin:12px 0;}
+.formula-box{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;margin:12px 0;}
+.box-label{font-family:'DM Mono',monospace;font-size:.56rem;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin-bottom:5px;}
+.formula-box .box-label{color:var(--muted);}
+.logic-box p{font-size:.76rem;color:var(--dim);line-height:1.65;}
+.formula-box pre{font-family:'DM Mono',monospace;font-size:.7rem;color:var(--blue);white-space:pre-wrap;line-height:1.65;margin:0;}
+.metric-score-table{width:100%;border-collapse:collapse;font-size:.76rem;}
+.metric-score-table th{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);padding:5px 8px;border-bottom:1px solid var(--border);font-weight:400;text-align:left;}
+.metric-score-table td{padding:7px 8px;border-bottom:1px solid rgba(34,34,46,.5);}
+.score-bar-wrap{display:flex;align-items:center;gap:7px;}
+.score-bar-bg{flex:1;max-width:90px;height:4px;background:var(--surf2);border-radius:2px;overflow:hidden;}
+.score-bar-fill{height:100%;background:var(--accent);border-radius:2px;}
+.score-num{font-family:'DM Mono',monospace;font-size:.7rem;width:26px;text-align:right;}
+.score-num.hi{color:var(--green);}
+.score-num.lo{color:var(--red);}
+
+/* ── Empty/onboarding ── */
+.onboard-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;color:var(--muted);font-family:'DM Mono',monospace;font-size:.78rem;text-align:center;padding:40px;}
+.onboard-empty .big{font-size:3rem;opacity:.4;}
+
+/* ── Status bar ── */
+.status-bar{display:flex;gap:5px;flex-wrap:wrap;padding:7px 32px;border-bottom:1px solid var(--border);min-height:34px;align-items:center;background:rgba(17,17,24,.8);}
+
+/* ── Fetch button ── */
+.fetch-btn{background:var(--accent);color:var(--bg);border:none;padding:9px 18px;font-family:'Syne',sans-serif;font-weight:700;font-size:.78rem;cursor:pointer;border-radius:var(--r);display:flex;align-items:center;gap:7px;transition:all .15s;white-space:nowrap;}
+.fetch-btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 20px rgba(232,255,71,.25);}
+.fetch-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+/* ── Responsive ── */
+@media(max-width:760px){
+  .setup-layout,.priorities-layout,.output-layout,.grid2,.metric-list-wrap{grid-template-columns:1fr;}
+  .weights-scroll{border-right:none;border-bottom:1px solid var(--border);height:auto;}
+  .output-left,.output-right,.preview-scroll{height:auto;}
+  .output-layout{height:auto;}
+  .app-header{padding:14px 16px 0;}
+  .setup-layout,.priorities-layout{padding:16px;height:auto;}
+  .output-left,.output-right{padding:14px;}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  CITY DATABASE — 76 cities, 28 countries
+// ═══════════════════════════════════════════════════════════════
+const CITY_DB=[
+  {city:"Tel Aviv",country:"Israel",flag:"🇮🇱",lat:32.0853,lon:34.7818,numbeo:"Tel-Aviv"},
+  {city:"Jerusalem",country:"Israel",flag:"🇮🇱",lat:31.7683,lon:35.2137,numbeo:"Jerusalem"},
+  {city:"Haifa",country:"Israel",flag:"🇮🇱",lat:32.794,lon:34.9896,numbeo:"Haifa"},
+  {city:"London",country:"United Kingdom",flag:"🇬🇧",lat:51.5074,lon:-0.1278,numbeo:"London"},
+  {city:"Manchester",country:"United Kingdom",flag:"🇬🇧",lat:53.4808,lon:-2.2426,numbeo:"Manchester"},
+  {city:"Edinburgh",country:"United Kingdom",flag:"🇬🇧",lat:55.9533,lon:-3.1883,numbeo:"Edinburgh"},
+  {city:"Birmingham",country:"United Kingdom",flag:"🇬🇧",lat:52.4862,lon:-1.8904,numbeo:"Birmingham"},
+  {city:"Bristol",country:"United Kingdom",flag:"🇬🇧",lat:51.4545,lon:-2.5879,numbeo:"Bristol"},
+  {city:"Berlin",country:"Germany",flag:"🇩🇪",lat:52.52,lon:13.405,numbeo:"Berlin"},
+  {city:"Munich",country:"Germany",flag:"🇩🇪",lat:48.1351,lon:11.582,numbeo:"Munich"},
+  {city:"Hamburg",country:"Germany",flag:"🇩🇪",lat:53.5511,lon:9.9937,numbeo:"Hamburg"},
+  {city:"Frankfurt",country:"Germany",flag:"🇩🇪",lat:50.1109,lon:8.6821,numbeo:"Frankfurt"},
+  {city:"Cologne",country:"Germany",flag:"🇩🇪",lat:50.9333,lon:6.95,numbeo:"Cologne"},
+  {city:"Stuttgart",country:"Germany",flag:"🇩🇪",lat:48.7758,lon:9.1829,numbeo:"Stuttgart"},
+  {city:"Düsseldorf",country:"Germany",flag:"🇩🇪",lat:51.2217,lon:6.7762,numbeo:"Dusseldorf"},
+  {city:"Amsterdam",country:"Netherlands",flag:"🇳🇱",lat:52.3676,lon:4.9041,numbeo:"Amsterdam"},
+  {city:"Rotterdam",country:"Netherlands",flag:"🇳🇱",lat:51.9244,lon:4.4777,numbeo:"Rotterdam"},
+  {city:"The Hague",country:"Netherlands",flag:"🇳🇱",lat:52.0705,lon:4.3007,numbeo:"The-Hague"},
+  {city:"Utrecht",country:"Netherlands",flag:"🇳🇱",lat:52.0907,lon:5.1214,numbeo:"Utrecht"},
+  {city:"Athens",country:"Greece",flag:"🇬🇷",lat:37.9838,lon:23.7275,numbeo:"Athens"},
+  {city:"Thessaloniki",country:"Greece",flag:"🇬🇷",lat:40.6401,lon:22.9444,numbeo:"Thessaloniki"},
+  {city:"New York",country:"United States",flag:"🇺🇸",lat:40.7128,lon:-74.006,numbeo:"New-York-NY"},
+  {city:"San Francisco",country:"United States",flag:"🇺🇸",lat:37.7749,lon:-122.4194,numbeo:"San-Francisco-CA"},
+  {city:"Los Angeles",country:"United States",flag:"🇺🇸",lat:34.0522,lon:-118.2437,numbeo:"Los-Angeles-CA"},
+  {city:"Miami",country:"United States",flag:"🇺🇸",lat:25.7617,lon:-80.1918,numbeo:"Miami-FL"},
+  {city:"Chicago",country:"United States",flag:"🇺🇸",lat:41.8781,lon:-87.6298,numbeo:"Chicago-IL"},
+  {city:"Austin",country:"United States",flag:"🇺🇸",lat:30.2672,lon:-97.7431,numbeo:"Austin-TX"},
+  {city:"Seattle",country:"United States",flag:"🇺🇸",lat:47.6062,lon:-122.3321,numbeo:"Seattle-WA"},
+  {city:"Boston",country:"United States",flag:"🇺🇸",lat:42.3601,lon:-71.0589,numbeo:"Boston-MA"},
+  {city:"Barcelona",country:"Spain",flag:"🇪🇸",lat:41.3851,lon:2.1734,numbeo:"Barcelona"},
+  {city:"Madrid",country:"Spain",flag:"🇪🇸",lat:40.4168,lon:-3.7038,numbeo:"Madrid"},
+  {city:"Valencia",country:"Spain",flag:"🇪🇸",lat:39.4699,lon:-0.3763,numbeo:"Valencia"},
+  {city:"Seville",country:"Spain",flag:"🇪🇸",lat:37.3891,lon:-5.9845,numbeo:"Seville"},
+  {city:"Malaga",country:"Spain",flag:"🇪🇸",lat:36.7213,lon:-4.4214,numbeo:"Malaga"},
+  {city:"Paris",country:"France",flag:"🇫🇷",lat:48.8566,lon:2.3522,numbeo:"Paris"},
+  {city:"Lyon",country:"France",flag:"🇫🇷",lat:45.764,lon:4.8357,numbeo:"Lyon"},
+  {city:"Marseille",country:"France",flag:"🇫🇷",lat:43.2965,lon:5.3698,numbeo:"Marseille"},
+  {city:"Nice",country:"France",flag:"🇫🇷",lat:43.7102,lon:7.262,numbeo:"Nice"},
+  {city:"Bordeaux",country:"France",flag:"🇫🇷",lat:44.8378,lon:-0.5792,numbeo:"Bordeaux"},
+  {city:"Lisbon",country:"Portugal",flag:"🇵🇹",lat:38.7223,lon:-9.1393,numbeo:"Lisbon"},
+  {city:"Porto",country:"Portugal",flag:"🇵🇹",lat:41.1579,lon:-8.6291,numbeo:"Porto"},
+  {city:"Milan",country:"Italy",flag:"🇮🇹",lat:45.4642,lon:9.19,numbeo:"Milan"},
+  {city:"Rome",country:"Italy",flag:"🇮🇹",lat:41.9028,lon:12.4964,numbeo:"Rome"},
+  {city:"Florence",country:"Italy",flag:"🇮🇹",lat:43.7696,lon:11.2558,numbeo:"Florence"},
+  {city:"Bologna",country:"Italy",flag:"🇮🇹",lat:44.4949,lon:11.3426,numbeo:"Bologna"},
+  {city:"Zurich",country:"Switzerland",flag:"🇨🇭",lat:47.3769,lon:8.5417,numbeo:"Zurich"},
+  {city:"Geneva",country:"Switzerland",flag:"🇨🇭",lat:46.2044,lon:6.1432,numbeo:"Geneva"},
+  {city:"Basel",country:"Switzerland",flag:"🇨🇭",lat:47.5596,lon:7.5886,numbeo:"Basel"},
+  {city:"Vienna",country:"Austria",flag:"🇦🇹",lat:48.2082,lon:16.3738,numbeo:"Vienna"},
+  {city:"Graz",country:"Austria",flag:"🇦🇹",lat:47.0707,lon:15.4395,numbeo:"Graz"},
+  {city:"Brussels",country:"Belgium",flag:"🇧🇪",lat:50.8503,lon:4.3517,numbeo:"Brussels"},
+  {city:"Antwerp",country:"Belgium",flag:"🇧🇪",lat:51.2213,lon:4.4051,numbeo:"Antwerp"},
+  {city:"Stockholm",country:"Sweden",flag:"🇸🇪",lat:59.3293,lon:18.0686,numbeo:"Stockholm"},
+  {city:"Gothenburg",country:"Sweden",flag:"🇸🇪",lat:57.7089,lon:11.9746,numbeo:"Gothenburg"},
+  {city:"Malmö",country:"Sweden",flag:"🇸🇪",lat:55.605,lon:13.0038,numbeo:"Malmo"},
+  {city:"Copenhagen",country:"Denmark",flag:"🇩🇰",lat:55.6761,lon:12.5683,numbeo:"Copenhagen"},
+  {city:"Oslo",country:"Norway",flag:"🇳🇴",lat:59.9139,lon:10.7522,numbeo:"Oslo"},
+  {city:"Helsinki",country:"Finland",flag:"🇫🇮",lat:60.1699,lon:24.9384,numbeo:"Helsinki"},
+  {city:"Prague",country:"Czech Republic",flag:"🇨🇿",lat:50.0755,lon:14.4378,numbeo:"Prague"},
+  {city:"Warsaw",country:"Poland",flag:"🇵🇱",lat:52.2297,lon:21.0122,numbeo:"Warsaw"},
+  {city:"Krakow",country:"Poland",flag:"🇵🇱",lat:50.0647,lon:19.945,numbeo:"Krakow"},
+  {city:"Budapest",country:"Hungary",flag:"🇭🇺",lat:47.4979,lon:19.0402,numbeo:"Budapest"},
+  {city:"Bucharest",country:"Romania",flag:"🇷🇴",lat:44.4268,lon:26.1025,numbeo:"Bucharest"},
+  {city:"Toronto",country:"Canada",flag:"🇨🇦",lat:43.6532,lon:-79.3832,numbeo:"Toronto"},
+  {city:"Vancouver",country:"Canada",flag:"🇨🇦",lat:49.2827,lon:-123.1207,numbeo:"Vancouver"},
+  {city:"Montreal",country:"Canada",flag:"🇨🇦",lat:45.5017,lon:-73.5673,numbeo:"Montreal"},
+  {city:"Sydney",country:"Australia",flag:"🇦🇺",lat:-33.8688,lon:151.2093,numbeo:"Sydney"},
+  {city:"Melbourne",country:"Australia",flag:"🇦🇺",lat:-37.8136,lon:144.9631,numbeo:"Melbourne"},
+  {city:"Dubai",country:"UAE",flag:"🇦🇪",lat:25.2048,lon:55.2708,numbeo:"Dubai"},
+  {city:"Abu Dhabi",country:"UAE",flag:"🇦🇪",lat:24.4539,lon:54.3773,numbeo:"Abu-Dhabi"},
+  {city:"Singapore",country:"Singapore",flag:"🇸🇬",lat:1.3521,lon:103.8198,numbeo:"Singapore"},
+  {city:"Tokyo",country:"Japan",flag:"🇯🇵",lat:35.6762,lon:139.6503,numbeo:"Tokyo"},
+  {city:"Osaka",country:"Japan",flag:"🇯🇵",lat:34.6937,lon:135.5023,numbeo:"Osaka"},
+  {city:"Nicosia",country:"Cyprus",flag:"🇨🇾",lat:35.1856,lon:33.3823,numbeo:"Nicosia"},
+  {city:"Limassol",country:"Cyprus",flag:"🇨🇾",lat:34.6786,lon:33.0413,numbeo:"Limassol"},
+  {city:"Dublin",country:"Ireland",flag:"🇮🇪",lat:53.3498,lon:-6.2603,numbeo:"Dublin"},
+];
+
+const ALL_PASSPORTS=[
+  "Afghan","Albanian","Algerian","American","Argentinian","Armenian","Australian","Austrian",
+  "Azerbaijani","Bahraini","Bangladeshi","Belgian","Bolivian","Bosnian","Brazilian","British",
+  "Bulgarian","Cambodian","Canadian","Chilean","Chinese","Colombian","Croatian","Cuban","Cypriot",
+  "Czech","Danish","Dutch","Egyptian","Emirati","Estonian","Ethiopian","Filipino","Finnish",
+  "French","Georgian","German","Ghanaian","Greek","Hungarian","Icelandic","Indian","Indonesian",
+  "Iranian","Iraqi","Irish","Israeli","Italian","Japanese","Jordanian","Kazakh","Kenyan",
+  "Korean","Kuwaiti","Latvian","Lebanese","Lithuanian","Luxembourgish","Malaysian","Mexican",
+  "Moroccan","New Zealander","Nigerian","Norwegian","Omani","Pakistani","Palestinian","Peruvian",
+  "Polish","Portuguese","Qatari","Romanian","Russian","Saudi","Serbian","Singaporean","Slovak",
+  "Slovenian","South African","Spanish","Sri Lankan","Swedish","Swiss","Syrian","Taiwanese",
+  "Thai","Tunisian","Turkish","Ukrainian","Uruguayan","Venezuelan","Vietnamese",
+];
+
+const ALL_LANGUAGES=[
+  "English","Hebrew","Arabic","French","German","Spanish","Dutch","Italian","Portuguese",
+  "Russian","Chinese (Mandarin)","Chinese (Cantonese)","Japanese","Korean","Hindi","Bengali",
+  "Polish","Czech","Slovak","Hungarian","Romanian","Bulgarian","Greek","Turkish","Farsi",
+  "Swedish","Norwegian","Danish","Finnish","Thai","Vietnamese","Malay","Swahili","Amharic",
+];
+
+// ── Passport rights ──────────────────────────────────────────
+const PASSPORT_RIGHTS={
+  "British":{
+    "Israel":{score:10,label:"Dual citizen (if Israeli) or easy work visa via bilateral ties"},
+    "United Kingdom":{score:10,label:"Citizen — home country"},
+    "Germany":{score:7,label:"Enter visa-free, apply in-country (Opportunity Card 2024)"},
+    "Netherlands":{score:6,label:"Kennismigrant via IND-registered employer"},
+    "Greece":{score:4,label:"Quota system + 274k backlog, 1–2yr wait (2024)"},
+    "United States":{score:3,label:"H-1B lottery (~13%) / O-1 / EB"},
+    "EU":{score:6,label:"Skilled Worker visa required (post-Brexit)"},
+    "Australia":{score:8,label:"Working Holiday or Skilled visa — relatively accessible"},
+    "Canada":{score:7,label:"Express Entry points-based — good prospects for English speakers"},
+    "Singapore":{score:5,label:"Employment Pass requires job offer from MOM-registered employer"},
+    "UAE":{score:7,label:"Employment visa via employer — generally accessible"},
+    "Japan":{score:5,label:"Work visa tied to employer, language often required"},
+    "Switzerland":{score:5,label:"Work permit required, employer-sponsored"},
+  },
+  "Israeli":{
+    "Israel":{score:10,label:"Citizen — home country"},
+    "United Kingdom":{score:6,label:"UK Skilled Worker visa (job offer required)"},
+    "Germany":{score:6,label:"Skilled Worker visa (German language often required)"},
+    "Netherlands":{score:5,label:"Kennismigrant (stricter for non-EU/UK nationals)"},
+    "Greece":{score:4,label:"Quota system + long backlog"},
+    "United States":{score:3,label:"H-1B lottery / O-1"},
+    "EU":{score:5,label:"Skilled Worker visa — no free movement"},
+    "Australia":{score:7,label:"Skilled visa — Israel has strong bilateral relationship"},
+    "Canada":{score:6,label:"Express Entry — competitive but achievable"},
+    "UAE":{score:7,label:"Employment visa accessible"},
+    "Singapore":{score:5,label:"Employment Pass with job offer"},
+  },
+  "American":{
+    "United States":{score:10,label:"Citizen — home country"},
+    "United Kingdom":{score:6,label:"UK Skilled Worker visa"},
+    "Germany":{score:6,label:"Skilled Worker visa"},
+    "Netherlands":{score:5,label:"Kennismigrant"},
+    "Greece":{score:4,label:"Quota + backlog"},
+    "Israel":{score:7,label:"Law of Return (if eligible) or standard work visa"},
+    "EU":{score:5,label:"Skilled Worker visa"},
+    "Australia":{score:8,label:"Skilled visa — very strong bilateral ties"},
+    "Canada":{score:8,label:"Express Entry — excellent prospects"},
+  },
+  "European":{
+    "EU":{score:10,label:"EU free movement — live and work anywhere in EU"},
+    "United Kingdom":{score:6,label:"UK Skilled Worker visa (post-Brexit)"},
+    "United States":{score:3,label:"H-1B lottery / O-1"},
+    "Australia":{score:7,label:"Skilled visa accessible"},
+    "Canada":{score:7,label:"Express Entry"},
+    "UAE":{score:7,label:"Employment visa"},
+    "Singapore":{score:5,label:"Employment Pass"},
+  },
+  "German":{
+    "Germany":{score:10,label:"Citizen — home"},
+    "EU":{score:10,label:"EU citizen — free movement"},
+    "United Kingdom":{score:6,label:"UK Skilled Worker visa"},
+    "United States":{score:3,label:"H-1B / O-1"},
+    "Australia":{score:8,label:"Skilled visa — strong bilateral ties"},
+    "Canada":{score:8,label:"Express Entry — German passport very competitive"},
+  },
+  "Dutch":{
+    "Netherlands":{score:10,label:"Citizen — home"},
+    "EU":{score:10,label:"EU free movement"},
+    "United Kingdom":{score:6,label:"UK Skilled Worker visa"},
+    "United States":{score:3,label:"H-1B / O-1"},
+  },
+  "French":{
+    "France":{score:10,label:"Citizen — home"},
+    "EU":{score:10,label:"EU free movement"},
+    "United Kingdom":{score:6,label:"UK Skilled Worker visa"},
+    "United States":{score:3,label:"H-1B / O-1"},
+    "Canada":{score:9,label:"Express Entry + French-speaking province pathways"},
+  },
+  "Australian":{
+    "Australia":{score:10,label:"Citizen — home"},
+    "United Kingdom":{score:8,label:"UK Ancestry visa or Youth Mobility; close bilateral ties"},
+    "United States":{score:4,label:"E-3 visa (Australia-specific) — easier than H-1B"},
+    "EU":{score:5,label:"Skilled Worker visa required"},
+    "Singapore":{score:6,label:"Employment Pass with job offer"},
+  },
+  "Canadian":{
+    "Canada":{score:10,label:"Citizen — home"},
+    "United Kingdom":{score:7,label:"Youth Mobility Scheme + strong ties"},
+    "United States":{score:5,label:"TN visa (USMCA) — easier for Canadians"},
+    "EU":{score:5,label:"Skilled Worker visa"},
+    "Australia":{score:8,label:"Very accessible bilateral relationship"},
+  },
+};
+
+// EF EPI 2024
+const EF_EPI={
+  "Israel":522,"United Kingdom":700,"Germany":598,"Netherlands":636,"Greece":602,
+  "United States":700,"Spain":568,"France":512,"Portugal":551,"Italy":481,
+  "Switzerland":600,"Austria":603,"Belgium":620,"Sweden":657,"Denmark":649,
+  "Norway":655,"Finland":648,"Czech Republic":573,"Poland":567,"Hungary":549,
+  "Romania":548,"Canada":700,"Australia":700,"Singapore":700,"Japan":492,
+  "UAE":516,"Cyprus":607,"Ireland":700,
+};
+const LOCAL_LANG={
+  "Israel":"Hebrew","United Kingdom":"English","Germany":"German","Netherlands":"Dutch",
+  "Greece":"Greek","United States":"English","Spain":"Spanish","France":"French",
+  "Portugal":"Portuguese","Italy":"Italian","Switzerland":"German","Austria":"German",
+  "Belgium":"French","Sweden":"Swedish","Denmark":"Danish","Norway":"Norwegian",
+  "Finland":"Finnish","Czech Republic":"Czech","Poland":"Polish","Hungary":"Hungarian",
+  "Romania":"Romanian","Canada":"English","Australia":"English","Singapore":"English",
+  "Japan":"Japanese","UAE":"Arabic","Cyprus":"Greek","Ireland":"English",
+};
+
+// Static city data (sourced)
+const CITY_STATIC={
+  "Tel Aviv":{carFreePct:28,noWar:0,bureau:10,travelConn:6,travelCost:6,beautyGR:73.6,internetMbps:145,socialScore:7.5,staticSunH:3300},
+  "Jerusalem":{carFreePct:22,noWar:0,bureau:10,travelConn:5,travelCost:6,beautyGR:72,internetMbps:145,socialScore:5,staticSunH:3200},
+  "Haifa":{carFreePct:25,noWar:0,bureau:9,travelConn:5,travelCost:6,beautyGR:70,internetMbps:140,socialScore:5,staticSunH:2900},
+  "London":{carFreePct:63,noWar:10,bureau:10,travelConn:9,travelCost:8,beautyGR:72,internetMbps:121,socialScore:9,staticSunH:1630},
+  "Manchester":{carFreePct:55,noWar:10,bureau:10,travelConn:7,travelCost:7,beautyGR:68,internetMbps:115,socialScore:7,staticSunH:1500},
+  "Edinburgh":{carFreePct:60,noWar:10,bureau:10,travelConn:7,travelCost:7,beautyGR:76,internetMbps:115,socialScore:7,staticSunH:1400},
+  "Birmingham":{carFreePct:52,noWar:10,bureau:10,travelConn:7,travelCost:7,beautyGR:67,internetMbps:115,socialScore:6.5,staticSunH:1450},
+  "Bristol":{carFreePct:56,noWar:10,bureau:10,travelConn:6,travelCost:7,beautyGR:70,internetMbps:115,socialScore:6.5,staticSunH:1500},
+  "Berlin":{carFreePct:70,noWar:10,bureau:2,travelConn:10,travelCost:9,beautyGR:71.3,internetMbps:105,socialScore:8.5,staticSunH:1870},
+  "Munich":{carFreePct:65,noWar:10,bureau:3,travelConn:9,travelCost:8,beautyGR:73,internetMbps:110,socialScore:7.5,staticSunH:1800},
+  "Hamburg":{carFreePct:63,noWar:10,bureau:3,travelConn:8,travelCost:8,beautyGR:69,internetMbps:108,socialScore:7.5,staticSunH:1700},
+  "Frankfurt":{carFreePct:60,noWar:10,bureau:3,travelConn:10,travelCost:8,beautyGR:68,internetMbps:110,socialScore:7,staticSunH:1740},
+  "Cologne":{carFreePct:62,noWar:10,bureau:3,travelConn:8,travelCost:8,beautyGR:70,internetMbps:108,socialScore:7,staticSunH:1700},
+  "Stuttgart":{carFreePct:58,noWar:10,bureau:3,travelConn:7,travelCost:7,beautyGR:68,internetMbps:108,socialScore:6.5,staticSunH:1780},
+  "Düsseldorf":{carFreePct:60,noWar:10,bureau:3,travelConn:9,travelCost:8,beautyGR:68,internetMbps:108,socialScore:7,staticSunH:1680},
+  "Amsterdam":{carFreePct:68,noWar:10,bureau:5,travelConn:10,travelCost:9,beautyGR:71.7,internetMbps:175,socialScore:8,staticSunH:1720},
+  "Rotterdam":{carFreePct:65,noWar:10,bureau:5,travelConn:8,travelCost:8,beautyGR:68,internetMbps:170,socialScore:7,staticSunH:1680},
+  "The Hague":{carFreePct:66,noWar:10,bureau:5,travelConn:7,travelCost:8,beautyGR:69,internetMbps:170,socialScore:7,staticSunH:1680},
+  "Utrecht":{carFreePct:70,noWar:10,bureau:5,travelConn:8,travelCost:8,beautyGR:70,internetMbps:168,socialScore:7,staticSunH:1680},
+  "Athens":{carFreePct:38,noWar:10,bureau:3,travelConn:8,travelCost:8,beautyGR:77.5,internetMbps:70,socialScore:6,staticSunH:2870},
+  "Thessaloniki":{carFreePct:32,noWar:10,bureau:3,travelConn:6,travelCost:7,beautyGR:72,internetMbps:65,socialScore:5.5,staticSunH:2650},
+  "New York":{carFreePct:55,noWar:10,bureau:5,travelConn:5,travelCost:3,beautyGR:77.7,internetMbps:200,socialScore:9.5,staticSunH:2535},
+  "San Francisco":{carFreePct:52,noWar:10,bureau:5,travelConn:6,travelCost:4,beautyGR:74,internetMbps:210,socialScore:9,staticSunH:2550},
+  "Los Angeles":{carFreePct:35,noWar:10,bureau:5,travelConn:6,travelCost:4,beautyGR:72,internetMbps:200,socialScore:8.5,staticSunH:3250},
+  "Miami":{carFreePct:30,noWar:10,bureau:5,travelConn:7,travelCost:4,beautyGR:70,internetMbps:200,socialScore:8,staticSunH:3150},
+  "Chicago":{carFreePct:55,noWar:10,bureau:5,travelConn:7,travelCost:4,beautyGR:73,internetMbps:200,socialScore:8.5,staticSunH:2520},
+  "Austin":{carFreePct:30,noWar:10,bureau:5,travelConn:6,travelCost:4,beautyGR:68,internetMbps:210,socialScore:8,staticSunH:2850},
+  "Seattle":{carFreePct:55,noWar:10,bureau:5,travelConn:7,travelCost:4,beautyGR:70,internetMbps:210,socialScore:8.5,staticSunH:2170},
+  "Boston":{carFreePct:58,noWar:10,bureau:5,travelConn:7,travelCost:4,beautyGR:71,internetMbps:200,socialScore:8.5,staticSunH:2630},
+  "Barcelona":{carFreePct:60,noWar:10,bureau:4,travelConn:9,travelCost:8,beautyGR:75,internetMbps:130,socialScore:8.5,staticSunH:2524},
+  "Madrid":{carFreePct:62,noWar:10,bureau:4,travelConn:9,travelCost:8,beautyGR:73,internetMbps:130,socialScore:8,staticSunH:2769},
+  "Valencia":{carFreePct:55,noWar:10,bureau:4,travelConn:7,travelCost:8,beautyGR:71,internetMbps:128,socialScore:7,staticSunH:2823},
+  "Seville":{carFreePct:50,noWar:10,bureau:4,travelConn:6,travelCost:8,beautyGR:73,internetMbps:126,socialScore:6.5,staticSunH:2911},
+  "Malaga":{carFreePct:45,noWar:10,bureau:4,travelConn:7,travelCost:8,beautyGR:70,internetMbps:124,socialScore:7,staticSunH:2816},
+  "Paris":{carFreePct:70,noWar:10,bureau:4,travelConn:10,travelCost:7,beautyGR:80,internetMbps:145,socialScore:8.5,staticSunH:1630},
+  "Lyon":{carFreePct:62,noWar:10,bureau:4,travelConn:8,travelCost:7,beautyGR:74,internetMbps:140,socialScore:7,staticSunH:1970},
+  "Marseille":{carFreePct:55,noWar:10,bureau:4,travelConn:7,travelCost:7,beautyGR:68,internetMbps:138,socialScore:6.5,staticSunH:2760},
+  "Nice":{carFreePct:52,noWar:10,bureau:4,travelConn:7,travelCost:7,beautyGR:74,internetMbps:140,socialScore:7,staticSunH:2722},
+  "Bordeaux":{carFreePct:58,noWar:10,bureau:4,travelConn:7,travelCost:7,beautyGR:73,internetMbps:138,socialScore:7,staticSunH:2070},
+  "Lisbon":{carFreePct:55,noWar:10,bureau:4,travelConn:8,travelCost:8,beautyGR:73,internetMbps:140,socialScore:8,staticSunH:2812},
+  "Porto":{carFreePct:52,noWar:10,bureau:4,travelConn:7,travelCost:8,beautyGR:72,internetMbps:138,socialScore:7.5,staticSunH:2600},
+  "Milan":{carFreePct:58,noWar:10,bureau:3,travelConn:9,travelCost:7,beautyGR:73,internetMbps:100,socialScore:8,staticSunH:1900},
+  "Rome":{carFreePct:45,noWar:10,bureau:3,travelConn:9,travelCost:7,beautyGR:78,internetMbps:98,socialScore:7.5,staticSunH:2473},
+  "Florence":{carFreePct:55,noWar:10,bureau:3,travelConn:7,travelCost:7,beautyGR:80,internetMbps:96,socialScore:7,staticSunH:1853},
+  "Bologna":{carFreePct:60,noWar:10,bureau:3,travelConn:8,travelCost:7,beautyGR:74,internetMbps:97,socialScore:7,staticSunH:1869},
+  "Zurich":{carFreePct:68,noWar:10,bureau:6,travelConn:8,travelCost:6,beautyGR:72,internetMbps:160,socialScore:7.5,staticSunH:1700},
+  "Geneva":{carFreePct:65,noWar:10,bureau:6,travelConn:8,travelCost:6,beautyGR:71,internetMbps:158,socialScore:7.5,staticSunH:1800},
+  "Basel":{carFreePct:66,noWar:10,bureau:6,travelConn:7,travelCost:6,beautyGR:71,internetMbps:155,socialScore:7,staticSunH:1700},
+  "Vienna":{carFreePct:72,noWar:10,bureau:5,travelConn:9,travelCost:8,beautyGR:76,internetMbps:120,socialScore:8,staticSunH:1960},
+  "Graz":{carFreePct:60,noWar:10,bureau:5,travelConn:7,travelCost:7,beautyGR:74,internetMbps:118,socialScore:7,staticSunH:1900},
+  "Brussels":{carFreePct:65,noWar:10,bureau:4,travelConn:9,travelCost:8,beautyGR:71,internetMbps:130,socialScore:7.5,staticSunH:1550},
+  "Antwerp":{carFreePct:60,noWar:10,bureau:4,travelConn:7,travelCost:8,beautyGR:73,internetMbps:128,socialScore:7,staticSunH:1550},
+  "Stockholm":{carFreePct:68,noWar:10,bureau:6,travelConn:8,travelCost:7,beautyGR:70,internetMbps:150,socialScore:7.5,staticSunH:1821},
+  "Gothenburg":{carFreePct:62,noWar:10,bureau:6,travelConn:7,travelCost:7,beautyGR:68,internetMbps:145,socialScore:7,staticSunH:1730},
+  "Malmö":{carFreePct:65,noWar:10,bureau:6,travelConn:7,travelCost:7,beautyGR:67,internetMbps:148,socialScore:7,staticSunH:1780},
+  "Copenhagen":{carFreePct:70,noWar:10,bureau:6,travelConn:8,travelCost:6,beautyGR:71,internetMbps:152,socialScore:7.5,staticSunH:1800},
+  "Oslo":{carFreePct:65,noWar:10,bureau:6,travelConn:7,travelCost:5,beautyGR:68,internetMbps:155,socialScore:7,staticSunH:1668},
+  "Helsinki":{carFreePct:65,noWar:10,bureau:6,travelConn:7,travelCost:6,beautyGR:68,internetMbps:152,socialScore:7,staticSunH:1838},
+  "Prague":{carFreePct:60,noWar:10,bureau:5,travelConn:8,travelCost:8,beautyGR:76,internetMbps:110,socialScore:7.5,staticSunH:1668},
+  "Warsaw":{carFreePct:52,noWar:10,bureau:5,travelConn:7,travelCost:8,beautyGR:69,internetMbps:112,socialScore:7,staticSunH:1600},
+  "Krakow":{carFreePct:55,noWar:10,bureau:5,travelConn:6,travelCost:8,beautyGR:74,internetMbps:110,socialScore:7,staticSunH:1600},
+  "Budapest":{carFreePct:60,noWar:10,bureau:4,travelConn:8,travelCost:8,beautyGR:75,internetMbps:115,socialScore:7.5,staticSunH:1986},
+  "Bucharest":{carFreePct:50,noWar:10,bureau:3,travelConn:7,travelCost:8,beautyGR:68,internetMbps:130,socialScore:6.5,staticSunH:2050},
+  "Toronto":{carFreePct:55,noWar:10,bureau:7,travelConn:7,travelCost:5,beautyGR:70,internetMbps:180,socialScore:8.5,staticSunH:2066},
+  "Vancouver":{carFreePct:55,noWar:10,bureau:7,travelConn:7,travelCost:4,beautyGR:71,internetMbps:180,socialScore:8.5,staticSunH:1938},
+  "Montreal":{carFreePct:58,noWar:10,bureau:7,travelConn:7,travelCost:5,beautyGR:70,internetMbps:175,socialScore:8,staticSunH:2050},
+  "Sydney":{carFreePct:40,noWar:10,bureau:7,travelConn:7,travelCost:4,beautyGR:72,internetMbps:120,socialScore:8.5,staticSunH:2636},
+  "Melbourne":{carFreePct:42,noWar:10,bureau:7,travelConn:7,travelCost:4,beautyGR:70,internetMbps:120,socialScore:8.5,staticSunH:2350},
+  "Dubai":{carFreePct:20,noWar:10,bureau:6,travelConn:10,travelCost:7,beautyGR:70,internetMbps:80,socialScore:8,staticSunH:3509},
+  "Abu Dhabi":{carFreePct:18,noWar:10,bureau:6,travelConn:9,travelCost:7,beautyGR:70,internetMbps:78,socialScore:7.5,staticSunH:3509},
+  "Singapore":{carFreePct:72,noWar:10,bureau:8,travelConn:9,travelCost:6,beautyGR:71,internetMbps:200,socialScore:9,staticSunH:2165},
+  "Tokyo":{carFreePct:75,noWar:10,bureau:4,travelConn:7,travelCost:5,beautyGR:72,internetMbps:195,socialScore:7,staticSunH:1876},
+  "Osaka":{carFreePct:70,noWar:10,bureau:4,travelConn:7,travelCost:5,beautyGR:70,internetMbps:190,socialScore:6.5,staticSunH:1810},
+  "Nicosia":{carFreePct:20,noWar:10,bureau:4,travelConn:6,travelCost:7,beautyGR:68,internetMbps:65,socialScore:6,staticSunH:3390},
+  "Limassol":{carFreePct:22,noWar:10,bureau:4,travelConn:6,travelCost:7,beautyGR:68,internetMbps:63,socialScore:6.5,staticSunH:3390},
+  "Dublin":{carFreePct:55,noWar:10,bureau:7,travelConn:8,travelCost:7,beautyGR:69,internetMbps:125,socialScore:8,staticSunH:1450},
+};
+const NUMBEO_FB={
+  "Tel Aviv":{rentUSD:1250,safetyIdx:46.8,healthcareIdx:73.5},
+  "Jerusalem":{rentUSD:1100,safetyIdx:50,healthcareIdx:73.5},
+  "Haifa":{rentUSD:950,safetyIdx:55,healthcareIdx:73.5},
+  "London":{rentUSD:2270,safetyIdx:42.9,healthcareIdx:73.5},
+  "Manchester":{rentUSD:1400,safetyIdx:45,healthcareIdx:72},
+  "Edinburgh":{rentUSD:1500,safetyIdx:55,healthcareIdx:72},
+  "Birmingham":{rentUSD:1200,safetyIdx:42,healthcareIdx:72},
+  "Bristol":{rentUSD:1350,safetyIdx:55,healthcareIdx:72},
+  "Berlin":{rentUSD:1150,safetyIdx:67.1,healthcareIdx:71.7},
+  "Munich":{rentUSD:1800,safetyIdx:72,healthcareIdx:72},
+  "Hamburg":{rentUSD:1500,safetyIdx:65,healthcareIdx:72},
+  "Frankfurt":{rentUSD:1600,safetyIdx:60,healthcareIdx:72},
+  "Cologne":{rentUSD:1400,safetyIdx:62,healthcareIdx:72},
+  "Stuttgart":{rentUSD:1500,safetyIdx:68,healthcareIdx:72},
+  "Düsseldorf":{rentUSD:1400,safetyIdx:64,healthcareIdx:72},
+  "Amsterdam":{rentUSD:1870,safetyIdx:92.5,healthcareIdx:78.9},
+  "Rotterdam":{rentUSD:1500,safetyIdx:55,healthcareIdx:78},
+  "The Hague":{rentUSD:1600,safetyIdx:60,healthcareIdx:78},
+  "Utrecht":{rentUSD:1550,safetyIdx:65,healthcareIdx:78},
+  "Athens":{rentUSD:710,safetyIdx:19.3,healthcareIdx:62},
+  "Thessaloniki":{rentUSD:550,safetyIdx:35,healthcareIdx:60},
+  "New York":{rentUSD:4500,safetyIdx:61.8,healthcareIdx:67},
+  "San Francisco":{rentUSD:4000,safetyIdx:35,healthcareIdx:70},
+  "Los Angeles":{rentUSD:3200,safetyIdx:40,healthcareIdx:70},
+  "Miami":{rentUSD:2800,safetyIdx:45,healthcareIdx:68},
+  "Chicago":{rentUSD:2200,safetyIdx:38,healthcareIdx:68},
+  "Austin":{rentUSD:2000,safetyIdx:55,healthcareIdx:68},
+  "Seattle":{rentUSD:2800,safetyIdx:42,healthcareIdx:70},
+  "Boston":{rentUSD:3000,safetyIdx:52,healthcareIdx:72},
+  "Barcelona":{rentUSD:1400,safetyIdx:60,healthcareIdx:70},
+  "Madrid":{rentUSD:1500,safetyIdx:65,healthcareIdx:70},
+  "Valencia":{rentUSD:900,safetyIdx:65,healthcareIdx:68},
+  "Seville":{rentUSD:850,safetyIdx:67,healthcareIdx:68},
+  "Malaga":{rentUSD:1000,safetyIdx:68,healthcareIdx:68},
+  "Paris":{rentUSD:2000,safetyIdx:40,healthcareIdx:75},
+  "Lyon":{rentUSD:1300,safetyIdx:50,healthcareIdx:75},
+  "Marseille":{rentUSD:900,safetyIdx:22,healthcareIdx:73},
+  "Nice":{rentUSD:1400,safetyIdx:50,healthcareIdx:73},
+  "Bordeaux":{rentUSD:1100,safetyIdx:52,healthcareIdx:73},
+  "Lisbon":{rentUSD:1400,safetyIdx:65,healthcareIdx:70},
+  "Porto":{rentUSD:1100,safetyIdx:68,healthcareIdx:70},
+  "Milan":{rentUSD:1800,safetyIdx:52,healthcareIdx:72},
+  "Rome":{rentUSD:1500,safetyIdx:48,healthcareIdx:72},
+  "Florence":{rentUSD:1300,safetyIdx:58,healthcareIdx:72},
+  "Bologna":{rentUSD:1100,safetyIdx:62,healthcareIdx:72},
+  "Zurich":{rentUSD:2800,safetyIdx:82,healthcareIdx:80},
+  "Geneva":{rentUSD:3000,safetyIdx:80,healthcareIdx:80},
+  "Basel":{rentUSD:2400,safetyIdx:80,healthcareIdx:80},
+  "Vienna":{rentUSD:1400,safetyIdx:80,healthcareIdx:75},
+  "Graz":{rentUSD:1100,safetyIdx:78,healthcareIdx:74},
+  "Brussels":{rentUSD:1400,safetyIdx:45,healthcareIdx:72},
+  "Antwerp":{rentUSD:1200,safetyIdx:50,healthcareIdx:72},
+  "Stockholm":{rentUSD:1800,safetyIdx:62,healthcareIdx:76},
+  "Gothenburg":{rentUSD:1500,safetyIdx:65,healthcareIdx:76},
+  "Malmö":{rentUSD:1300,safetyIdx:45,healthcareIdx:76},
+  "Copenhagen":{rentUSD:1800,safetyIdx:72,healthcareIdx:76},
+  "Oslo":{rentUSD:2200,safetyIdx:72,healthcareIdx:78},
+  "Helsinki":{rentUSD:1600,safetyIdx:75,healthcareIdx:78},
+  "Prague":{rentUSD:1100,safetyIdx:72,healthcareIdx:68},
+  "Warsaw":{rentUSD:1000,safetyIdx:65,healthcareIdx:65},
+  "Krakow":{rentUSD:850,safetyIdx:68,healthcareIdx:65},
+  "Budapest":{rentUSD:900,safetyIdx:58,healthcareIdx:60},
+  "Bucharest":{rentUSD:700,safetyIdx:55,healthcareIdx:55},
+  "Toronto":{rentUSD:2200,safetyIdx:65,healthcareIdx:75},
+  "Vancouver":{rentUSD:2500,safetyIdx:58,healthcareIdx:75},
+  "Montreal":{rentUSD:1500,safetyIdx:60,healthcareIdx:74},
+  "Sydney":{rentUSD:2400,safetyIdx:62,healthcareIdx:72},
+  "Melbourne":{rentUSD:2000,safetyIdx:65,healthcareIdx:72},
+  "Dubai":{rentUSD:2000,safetyIdx:85,healthcareIdx:72},
+  "Abu Dhabi":{rentUSD:1800,safetyIdx:87,healthcareIdx:74},
+  "Singapore":{rentUSD:2800,safetyIdx:88,healthcareIdx:76},
+  "Tokyo":{rentUSD:1400,safetyIdx:88,healthcareIdx:80},
+  "Osaka":{rentUSD:1100,safetyIdx:88,healthcareIdx:80},
+  "Nicosia":{rentUSD:900,safetyIdx:68,healthcareIdx:65},
+  "Limassol":{rentUSD:1000,safetyIdx:70,healthcareIdx:65},
+  "Dublin":{rentUSD:2200,safetyIdx:55,healthcareIdx:72},
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  CALCULATION ENGINE (pure functions)
+// ═══════════════════════════════════════════════════════════════
+const clamp=(v,lo=0,hi=10)=>Math.max(lo,Math.min(hi,v));
+const haversineKm=(lat1,lon1,lat2,lon2)=>{
+  const R=6371,dLat=(lat2-lat1)*Math.PI/180,dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+};
+
+const scoreAirQuality=pm25=>clamp(10-(pm25-5)*(10/30));
+const scoreCarFree=pct=>clamp(pct/7.3);
+const scoreComfortDays=(temps,min=10,max=25)=>{
+  const days=temps.reduce((s,t)=>{
+    if(t>=min&&t<=max)return s+1;
+    if(t>max&&t<=max+3)return s+(max+3-t)/3;
+    if(t>=min-3&&t<min)return s+(t-(min-3))/3;
+    return s;
+  },0);
+  return{score:clamp((days-150)/9),raw:Math.round(days)+" days/yr"};
+};
+const scoreSunshine=rads=>{
+  const h=rads.reduce((a,b)=>a+b,0)*0.6;
+  return{score:clamp((h-1200)/230),raw:Math.round(h)+"h/yr"};
+};
+const scoreRent=usd=>clamp(10-(usd-500)/400);
+const scoreSafety=idx=>clamp(idx/10);
+const scoreHealthcare=idx=>clamp(idx/10);
+const scoreInternet=mbps=>clamp((mbps-50)/15);
+const scoreLang=(efEpi,userLangs,localLang)=>{
+  const base=clamp((efEpi-400)/30);
+  const speaks=userLangs.some(l=>l.toLowerCase()===localLang?.toLowerCase()||
+    (["english"].includes(l.toLowerCase())&&["English"].includes(localLang)));
+  return clamp(speaks?base+3:base);
+};
+const scoreVisa=(passports,country,rights)=>{
+  let best={score:3,label:"No passport data — assumed difficult"};
+  for(const p of passports){
+    const r=rights[p]||{};
+    const e=r[country]||r["EU"]||r["European"];
+    if(e&&e.score>best.score)best=e;
+  }
+  return best;
+};
+const scoreFamily=(lat,lon,anchors)=>{
+  if(!anchors.length)return{score:5,raw:"No anchors set"};
+  const total=anchors.reduce((s,a)=>s+a.weight,0)||1;
+  const sc=anchors.reduce((sum,a)=>{
+    const km=haversineKm(lat,lon,a.lat,a.lon);
+    return sum+(a.weight/total)*Math.max(1,10-(km/10000)*9);
+  },0);
+  const details=anchors.map(a=>{
+    const km=Math.round(haversineKm(lat,lon,a.lat,a.lon));
+    return `${a.label}: ${km}km`;
+  }).join(" | ");
+  return{score:clamp(sc),raw:details};
+};
+const scoreProximity=(lat,lon,anchors)=>{
+  if(!anchors.length)return{score:5,raw:"No people added"};
+  const total=anchors.reduce((s,a)=>s+a.weight,0)||1;
+  const sc=anchors.reduce((sum,a)=>{
+    const km=haversineKm(lat,lon,a.lat,a.lon);
+    return sum+(a.weight/total)*Math.max(1,10-(km/6500)*9);
+  },0);
+  const details=anchors.map(a=>`${a.label}: ${Math.round(haversineKm(lat,lon,a.lat,a.lon))}km`).join(" | ");
+  return{score:clamp(sc),raw:details};
+};
+const scoreTravel=(conn,cost)=>clamp((conn+cost)/2);
+const scoreBeauty=pct=>clamp((pct-65)/(84-65)*10);
+
+const scoreCityTotal=(scores,weights)=>{
+  const keys=Object.keys(weights);
+  let t=0,mx=0;
+  for(const k of keys){t+=(scores[k]??0)*(weights[k]??0);mx+=10*(weights[k]??0);}
+  return mx>0?(t/mx)*100:0;
+};
+
+function buildScores(cityName,cityDb,config,liveData){
+  const db=CITY_DB.find(c=>c.city===cityName)||{};
+  const s=CITY_STATIC[cityName]||{};
+  const nb=NUMBEO_FB[cityName]||{};
+  const live=liveData[cityName]||{};
+  const country=db.country||"";
+
+  const airQ=live.airQ??scoreAirQuality(nb.rentUSD?11:11);
+  const tempS=live.temp??5;
+  const sunS=live.sun??clamp((s.staticSunH-1200)/230);
+  const rentS=live.rent??scoreRent(nb.rentUSD||1500);
+  const safetyS=live.safety??scoreSafety(nb.safetyIdx||50);
+  const healthS=live.healthcare??scoreHealthcare(nb.healthcareIdx||65);
+  const carFreeS=scoreCarFree(s.carFreePct||50);
+  const noWar=s.noWar??10;
+  const bureau=s.bureau??5;
+  const travelS=scoreTravel(s.travelConn||7,s.travelCost||7);
+  const beauty=scoreBeauty(s.beautyGR||70);
+  const internet=scoreInternet(s.internetMbps||100);
+  const social=clamp(s.socialScore||6);
+  const visaRes=scoreVisa(config.passports,country,PASSPORT_RIGHTS);
+  const famRes=scoreFamily(db.lat,db.lon,config.familyAnchors);
+  const proxRes=scoreProximity(db.lat,db.lon,config.proximityAnchors);
+  const efEpi=EF_EPI[country]||500;
+  const langS=scoreLang(efEpi,config.languages,LOCAL_LANG[country]);
+
+  return{
+    scores:{airQ,carFree:carFreeS,temp:tempS,sun:sunS,rent:rentS,safety:safetyS,
+      noWar,visa:visaRes.score,bureau,family:famRes.score,proximity:proxRes.score,
+      travel:travelS,lang:langS,beauty,healthcare:healthS,internet,social},
+    raws:{
+      airQ:live.airQRaw||(nb.rentUSD?"~est":"~11 µg/m³"),
+      temp:live.tempRaw||"(static est.)",sun:live.sunRaw||(s.staticSunH+"h/yr static"),
+      rent:live.rentRaw||("~$"+nb.rentUSD+"/mo est."),
+      safety:live.safetyRaw||(nb.safetyIdx+"/100 est."),
+      healthcare:live.healthcareRaw||(nb.healthcareIdx+"/100 est."),
+      carFree:s.carFreePct+"%",noWar:noWar===0?"⚠️ Active conflict":"Peaceful",
+      visa:visaRes.label,bureau:bureau>=9?"Citizen":"See Metrics tab",
+      family:famRes.raw,proximity:proxRes.raw,
+      lang:"EF EPI "+(EF_EPI[country]||"?"),
+      beauty:s.beautyGR+"% golden ratio",internet:s.internetMbps+" Mbps",
+      social:s.socialScore+"/10",travel:"Conn:"+s.travelConn+" Cost:"+s.travelCost,
+    },
+    isLive:{airQ:!!live.airQ,temp:!!live.temp,sun:!!live.sun,
+      rent:!!live.rent,safety:!!live.safety,healthcare:!!live.healthcare},
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  METRIC DEFINITIONS
+// ═══════════════════════════════════════════════════════════════
+const METRIC_DEFS=[
+  {key:"airQ",label:"Air Quality",cat:"🌬️ Environment",type:"live",
+    source:"Open-Meteo Air Quality API — 12-month PM2.5",
+    formula:"score = max(0, min(10, 10 − (PM2.5 − 5) × (10/30)))\n5 µg/m³ (WHO) → 10  ·  35 µg/m³ → 0",
+    logic:"PM2.5 is the primary air quality health indicator. WHO guideline = 5 µg/m³ → 10. Linear to 0 at 35 µg/m³. Full year rolling average."},
+  {key:"carFree",label:"Car-free lifestyle",cat:"🌬️ Environment",type:"data",
+    source:"City transit surveys (TfL, CBS, BVG, CBS NL, ELSTAT, MTA 2023)",
+    formula:"score = (% non-car commuters) / 7.3\n73% best in set → 10  ·  0% → 0",
+    logic:"Higher % means city is genuinely liveable without owning a car. Anchored to Amsterdam/Utrecht (73%) as the best in set at 10."},
+  {key:"temp",label:"Comfortable days",cat:"☀️ Weather",type:"live",
+    source:"Open-Meteo Climate API — EC_Earth3P_HR model, 2010",
+    formula:"Count days where daily_mean ∈ [your comfort range]\nscore = max(0, min(10, (days − 150) / 9))",
+    logic:"Counts actual days in your configured comfort range — much more informative than annual average. 150 days = score 0, 240 days = score 10."},
+  {key:"sun",label:"Annual sunshine",cat:"☀️ Weather",type:"live",
+    source:"Open-Meteo Climate API — shortwave radiation × 0.6 ≈ hours",
+    formula:"hours = Σ(daily_radiation_MJ × 0.6)\nscore = max(0, min(10, (hours − 1200) / 230))",
+    logic:"Sunshine hours complement comfort days. 1200h = dark northern baseline, 3500h = desert ceiling."},
+  {key:"rent",label:"Rent (1-bed centre)",cat:"💰 Affordability",type:"live",
+    source:"Numbeo — 1-bed apartment, city centre",
+    formula:"score = max(0, min(10, 10 − (USD − 500) / 400))\n$500/mo → 10  ·  $4500/mo → 0",
+    logic:"Single largest recurring cost for a solo mover. $500 anchors cheap-European floor, $4500 = NYC premium."},
+  {key:"safety",label:"Safety index",cat:"🛡️ Safety",type:"live",
+    source:"Numbeo Safety Index (crowd-sourced, 0–100)",
+    formula:"score = numbeo_safety_index / 10",
+    logic:"Perception-based safety — more comparable across countries than official crime stats which use different definitions."},
+  {key:"noWar",label:"No active war",cat:"🛡️ Safety",type:"data",
+    source:"Manual — active armed conflict assessment",
+    formula:"score = 10 if peaceful  ·  score = 0 if active conflict",
+    logic:"Binary because active war is qualitatively different from a bad safety score. Affects daily life, mobility and psychology in ways no gradient captures."},
+  {key:"visa",label:"Right to live & work",cat:"📋 Legal",type:"dynamic",
+    source:"Immigration law — computed from your passports",
+    formula:"Best score across your passports for each city",
+    logic:"Scored on process difficulty and certainty. Citizenship = 10. Visa-free apply in-country = 7. Employer-sponsored = 5-6. Lottery/quota = 3-4."},
+  {key:"bureau",label:"Bureaucracy ease",cat:"📋 Legal",type:"data",
+    source:"World Bank B-READY 2024 + resident experience",
+    formula:"Citizen → 10  ·  English+digital → 5  ·  Language barrier+slow → 2–3",
+    logic:"Ongoing admin friction as resident: address registration, healthcare, bank accounts, tax ID. Separate from visa difficulty."},
+  {key:"family",label:"Family proximity",cat:"👥 Social",type:"dynamic",
+    source:"Great-circle distances to your family anchors",
+    formula:"weighted avg of: max(1, 10 − (km / 10000) × 9) per anchor",
+    logic:"Multiple anchors with weights. Score = 10 at 0km, falls to ~1 at 10,000km. Weights from your setup."},
+  {key:"proximity",label:"Friends proximity",cat:"👥 Social",type:"dynamic",
+    source:"Great-circle distances to your friends/people",
+    formula:"weighted avg of: max(1, 10 − (km / 6500) × 9) per person",
+    logic:"Inverse distance to specific people you've added. Max distance 6500km = score 1. Weights from your setup."},
+  {key:"travel",label:"Travel hub",cat:"👥 Social",type:"data",
+    source:"Airport connectivity + Hopper 2024 fare data",
+    formula:"(connectivity_score + cost_score) / 2",
+    logic:"Equal weight: countries reachable in 3h + budget airline hubs, vs avg weekend trip cost. Berlin/Amsterdam win both."},
+  {key:"lang",label:"Language ease",cat:"🌆 Culture",type:"dynamic",
+    source:"EF EPI 2024 + your language config",
+    formula:"base = min(10, (EF_EPI − 400) / 30)\n+3 if you speak local language (capped at 10)",
+    logic:"EF EPI = country English proficiency. +3 bonus if you speak the local language from your config."},
+  {key:"beauty",label:"City beauty",cat:"🌆 Culture",type:"data",
+    source:"Online Mortgage Advisor Golden Ratio Study 2024",
+    formula:"score = (golden_ratio_pct − 65) / 19 × 10",
+    logic:"% of buildings matching golden ratio from 2400+ landmarks. Reproducible proxy for architectural quality."},
+  {key:"healthcare",label:"Healthcare",cat:"🏥 Quality",type:"live",
+    source:"Numbeo Healthcare Index (0–100)",
+    formula:"score = numbeo_healthcare_index / 10",
+    logic:"User-reported perception of medical quality, speed, cost. Correlates with WHO rankings."},
+  {key:"internet",label:"Internet speed",cat:"🏥 Quality",type:"data",
+    source:"Ookla Speedtest Global Index 2024 — median Mbps",
+    formula:"score = max(0, min(10, (Mbps − 50) / 15))\n50 Mbps → 0  ·  200 Mbps → 10",
+    logic:"Critical for remote work. 50 Mbps = functional minimum. 15 Mbps per score point."},
+  {key:"social",label:"Expat scene",cat:"🏥 Quality",type:"data",
+    source:"InterNations Expat City Ranking 2024",
+    formula:"composite: InterNations rank + English expat community + tech scene",
+    logic:"How easy to build a social life as a newcomer. InterNations friendliness, English-speaking expat community size, startup scene."},
+];
+const CATS=[...new Set(METRIC_DEFS.map(m=>m.cat))];
+const TYPE_BADGE={live:"wt-live",dynamic:"wt-calc",data:"wt-data"};
+const TYPE_LABEL={live:"LIVE",dynamic:"CALC",data:"DATA"};
+const TYPE_DOT_COLOR={live:"var(--blue)",dynamic:"var(--purple)",data:"var(--orange)"};
+
+const DEFAULT_WEIGHTS={
+  airQ:5,carFree:4,temp:7,sun:6,rent:7,safety:6,noWar:9,
+  visa:8,bureau:5,family:7,proximity:6,travel:5,
+  lang:5,beauty:4,healthcare:6,internet:4,social:5,
+};
+
+// ═══════════════════════════════════════════════════════════════
+//  LOCALSTORAGE
+// ═══════════════════════════════════════════════════════════════
+const LS_KEY="relocation_scorer_v1";
+function loadState(){try{const s=localStorage.getItem(LS_KEY);return s?JSON.parse(s):null;}catch{return null;}}
+function saveState(s){try{localStorage.setItem(LS_KEY,JSON.stringify(s));}catch{}}
+
+// ═══════════════════════════════════════════════════════════════
+//  REACT HELPERS
+// ═══════════════════════════════════════════════════════════════
+const{createElement:h,useState,useEffect,useCallback,useMemo,useRef}=React;
+const e=(tag,props,...children)=>h(tag,props,...children);
+
+// ── CityAutocomplete ─────────────────────────────────────────
+function CityAutocomplete({value,onChange,onSelect,placeholder="Type a city…",excludeIds=[],_inputRef}){
+  const[open,setOpen]=useState(false);
+  const[sel,setSel]=useState(-1);
+  const ref=useRef(null);
+  const filtered=useMemo(()=>{
+    if(!value||value.length<1)return[];
+    const q=value.toLowerCase();
+    return CITY_DB
+      .filter(c=>!excludeIds.includes(c.city+"|"+c.country))
+      .filter(c=>c.city.toLowerCase().includes(q)||c.country.toLowerCase().includes(q))
+      .slice(0,8);
+  },[value,excludeIds]);
+
+  useEffect(()=>{
+    const handler=ev=>{if(ref.current&&!ref.current.contains(ev.target))setOpen(false);};
+    document.addEventListener("mousedown",handler);
+    return()=>document.removeEventListener("mousedown",handler);
+  },[]);
+
+  return e("div",{className:"autocomplete-wrap",ref},
+    e("input",{className:"input",value,placeholder,ref:_inputRef,
+      onChange:ev=>{onChange(ev.target.value);setOpen(true);setSel(-1);},
+      onFocus:()=>{if(filtered.length)setOpen(true);},
+      onKeyDown:ev=>{
+        if(ev.key==="ArrowDown"){ev.preventDefault();setSel(s=>Math.min(s+1,filtered.length-1));}
+        else if(ev.key==="ArrowUp"){ev.preventDefault();setSel(s=>Math.max(s-1,0));}
+        else if(ev.key==="Enter"&&sel>=0&&filtered[sel]){ev.preventDefault();onSelect(filtered[sel]);setOpen(false);}
+        else if(ev.key==="Escape")setOpen(false);
+        else if(ev.key==="Tab")setOpen(false);
+      }
+    }),
+    open&&filtered.length>0&&e("div",{className:"ac-dropdown"},
+      filtered.map((c,i)=>e("div",{
+        key:c.city+c.country,
+        className:"ac-item"+(i===sel?" selected":""),
+        onMouseDown:()=>{onSelect(c);setOpen(false);},
+        onMouseEnter:()=>setSel(i),
+      },
+        e("span",{className:"ac-flag"},c.flag),
+        e("div",{className:"ac-main"},
+          e("div",{className:"ac-city"},c.city),
+          e("div",{className:"ac-country"},c.country),
+        )
+      ))
+    ),
+    open&&value.length>=1&&filtered.length===0&&
+      e("div",{className:"ac-dropdown"},e("div",{className:"ac-empty"},"No cities found for \""+value+"\""))
+  );
+}
+
+// ── TagList ──────────────────────────────────────────────────
+function TagList({items,onRemove,colorClass="tag-y",renderItem}){
+  return e("div",{style:{display:"flex",flexWrap:"wrap",gap:6,marginTop:8}},
+    items.map((item,i)=>e("span",{key:i,className:"tag "+colorClass},
+      renderItem?renderItem(item):item,
+      e("span",{className:"tag-remove",onClick:()=>onRemove(i)},"×")
+    ))
+  );
+}
+
+// ── PassportSelect ───────────────────────────────────────────
+function PassportSelect({passports,onChange}){
+  const[input,setInput]=useState("");
+  const[open,setOpen]=useState(false);
+  const[selIdx,setSelIdx]=useState(-1);
+  const ref=useRef(null);
+  const dropRef=useRef(null);
+  const filtered=useMemo(()=>{
+    const q=input.toLowerCase();
+    return ALL_PASSPORTS.filter(p=>p.toLowerCase().includes(q)&&!passports.includes(p));
+  },[input,passports]);
+  useEffect(()=>{
+    const h=ev=>{if(ref.current&&!ref.current.contains(ev.target))setOpen(false);};
+    document.addEventListener("mousedown",h);return()=>document.removeEventListener("mousedown",h);
+  },[]);
+  // Scroll selected item into view
+  useEffect(()=>{
+    if(selIdx<0||!dropRef.current)return;
+    const item=dropRef.current.children[selIdx];
+    if(item)item.scrollIntoView({block:"nearest"});
+  },[selIdx]);
+  const add=p=>{onChange([...passports,p]);setInput("");setOpen(false);setSelIdx(-1);};
+  return e("div",null,
+    e("div",{className:"autocomplete-wrap",ref},
+      e("input",{className:"input",value:input,placeholder:"Search passport nationality…",
+        onChange:ev=>{setInput(ev.target.value);setOpen(true);setSelIdx(-1);},
+        onFocus:()=>{setOpen(true);setSelIdx(-1);},
+        onKeyDown:ev=>{
+          if(!open)return;
+          if(ev.key==="ArrowDown"){ev.preventDefault();setSelIdx(s=>Math.min(s+1,filtered.length-1));}
+          else if(ev.key==="ArrowUp"){ev.preventDefault();setSelIdx(s=>Math.max(s-1,0));}
+          else if(ev.key==="Enter"&&selIdx>=0&&filtered[selIdx]){ev.preventDefault();add(filtered[selIdx]);}
+          else if(ev.key==="Escape"){setOpen(false);setSelIdx(-1);}
+          else if(ev.key==="Tab"){setOpen(false);}
+        },
+      }),
+      open&&filtered.length>0&&e("div",{className:"ac-dropdown",ref:dropRef},
+        filtered.map((p,i)=>e("div",{
+          key:p,className:"ac-item"+(i===selIdx?" selected":""),
+          onMouseDown:ev=>{ev.preventDefault();add(p);},
+          onMouseEnter:()=>setSelIdx(i),
+        },e("div",{className:"ac-main"},e("div",{className:"ac-city"},p))))
+      ),
+      open&&filtered.length===0&&input.length>0&&
+        e("div",{className:"ac-dropdown"},e("div",{className:"ac-empty"},"No match for \""+input+"\""))
+    ),
+    e(TagList,{items:passports,onRemove:i=>onChange(passports.filter((_,j)=>j!==i)),
+      colorClass:"tag-y",renderItem:p=>e("span",null,"🛂 ",p)}),
+  );
+}
+
+// ── LanguageSelect ───────────────────────────────────────────
+function LanguageSelect({languages,onChange}){
+  const[input,setInput]=useState("");
+  const[open,setOpen]=useState(false);
+  const ref=useRef(null);
+  const filtered=useMemo(()=>{
+    const q=input.toLowerCase();
+    return ALL_LANGUAGES.filter(l=>l.toLowerCase().includes(q)&&!languages.includes(l)).slice(0,8);
+  },[input,languages]);
+  useEffect(()=>{
+    const h=ev=>{if(ref.current&&!ref.current.contains(ev.target))setOpen(false);};
+    document.addEventListener("mousedown",h);return()=>document.removeEventListener("mousedown",h);
+  },[]);
+  const add=l=>{onChange([...languages,l]);setInput("");setOpen(false);};
+  return e("div",null,
+    e("div",{className:"autocomplete-wrap",ref},
+      e("input",{className:"input",value:input,placeholder:"Add a language…",
+        onChange:ev=>{setInput(ev.target.value);setOpen(true);},
+        onFocus:()=>setOpen(true),
+      }),
+      open&&filtered.length>0&&e("div",{className:"ac-dropdown"},
+        filtered.map(l=>e("div",{key:l,className:"ac-item",onMouseDown:()=>add(l)},
+          e("div",{className:"ac-main"},e("div",{className:"ac-city"},"💬 ",l))
+        ))
+      )
+    ),
+    e(TagList,{items:languages,onRemove:i=>onChange(languages.filter((_,j)=>j!==i)),
+      colorClass:"tag-b",renderItem:l=>e("span",null,"💬 ",l)}),
+  );
+}
+
+// ── CityPickerList ───────────────────────────────────────────
+function CityPickerList({cities,onAdd,onRemove,label,maxItems=10,placeholder}){
+  const[input,setInput]=useState("");
+  const ids=cities.map(c=>c.city+"|"+c.country);
+  return e("div",null,
+    cities.length<maxItems&&e(CityAutocomplete,{
+      value:input,onChange:setInput,
+      placeholder:placeholder||"Add a city…",
+      excludeIds:ids,
+      onSelect:c=>{onAdd(c);setInput("");}
+    }),
+    e("div",{style:{display:"flex",flexWrap:"wrap",gap:6,marginTop:8}},
+      cities.map((c,i)=>e("span",{key:i,className:"tag tag-g"},
+        c.flag," ",c.city,
+        e("span",{style:{fontFamily:"DM Mono,monospace",fontSize:".6rem",color:"var(--muted)",marginLeft:4}},c.country),
+        e("span",{className:"tag-remove",onClick:()=>onRemove(i)},"×")
+      ))
+    )
+  );
+}
+
+// ── AnchorEditor ─────────────────────────────────────────────
+// Each anchor has an independent weight (number input, 1–100).
+// Weights are NOT linked — changing one does not affect others.
+// The total is validated and must equal 100% before proceeding.
+
+function AnchorEditor({anchors,onChange}){
+  const[cityInput,setCityInput]=useState("");
+  const[label,setLabel]=useState("");
+  const[newType,setNewType]=useState("family");
+  const labelRef=useRef(null);
+  const cityInputRef=useRef(null);
+
+  const addAnchor=city=>{
+    const lbl=label.trim()||city.city;
+    // Default weight: 100 if first, else 0 (user must set it themselves)
+    const defaultW=anchors.length===0?100:0;
+    onChange([...anchors,{label:lbl,type:newType,city:city.city,country:city.country,flag:city.flag,lat:city.lat,lon:city.lon,weight:defaultW}]);
+    setCityInput("");
+    setLabel("");
+    setTimeout(()=>labelRef.current&&labelRef.current.focus(),50);
+  };
+
+  const setWeight=(i,raw)=>{
+    const v=Math.max(0,Math.min(100,parseInt(raw)||0));
+    const updated=[...anchors];
+    updated[i]={...updated[i],weight:v};
+    onChange(updated);
+  };
+
+  const removeAnchor=i=>onChange(anchors.filter((_,j)=>j!==i));
+
+  const toggleType=i=>{
+    const updated=[...anchors];
+    updated[i]={...updated[i],type:updated[i].type==="family"?"people":"family"};
+    onChange(updated);
+  };
+
+  const total=anchors.reduce((s,a)=>s+a.weight,0);
+  const isOk=anchors.length===0||total===100;
+  const familyCount=anchors.filter(a=>a.type==="family").length;
+  const peopleCount=anchors.filter(a=>a.type==="people").length;
+
+  return e("div",null,
+    // Add form
+    e("div",{style:{display:"grid",gridTemplateColumns:"1fr auto 1.3fr",gap:8,marginBottom:6,alignItems:"start"}},
+      e("div",{className:"input-group"},
+        e("div",{className:"input-label"},"Label"),
+        e("input",{
+          className:"input",ref:labelRef,value:label,
+          placeholder:"e.g. Parents, Alex…",
+          onChange:ev=>setLabel(ev.target.value),
+          onKeyDown:ev=>{if(ev.key==="Tab"){ev.preventDefault();cityInputRef.current&&cityInputRef.current.focus();}},
+        })
+      ),
+      e("div",{className:"input-group"},
+        e("div",{className:"input-label"},"Type"),
+        e("div",{style:{display:"flex"}},
+          e("button",{
+            style:{padding:"7px 10px",fontFamily:"DM Mono,monospace",fontSize:".6rem",cursor:"pointer",border:"1px solid "+(newType==="family"?"rgba(71,196,255,.4)":"var(--border)"),background:newType==="family"?"rgba(71,196,255,.1)":"transparent",color:newType==="family"?"var(--blue)":"var(--muted)",borderRadius:"var(--r) 0 0 var(--r)"},
+            onMouseDown:ev=>{ev.preventDefault();setNewType("family");}
+          },"👨‍👩‍👧"),
+          e("button",{
+            style:{padding:"7px 10px",fontFamily:"DM Mono,monospace",fontSize:".6rem",cursor:"pointer",border:"1px solid "+(newType==="people"?"rgba(180,123,255,.4)":"var(--border)"),borderLeft:"none",background:newType==="people"?"rgba(180,123,255,.1)":"transparent",color:newType==="people"?"var(--purple)":"var(--muted)",borderRadius:"0 var(--r) var(--r) 0"},
+            onMouseDown:ev=>{ev.preventDefault();setNewType("people");}
+          },"👤")
+        )
+      ),
+      e("div",{className:"input-group"},
+        e("div",{className:"input-label"},"City"),
+        e(CityAutocomplete,{value:cityInput,onChange:setCityInput,placeholder:"Search city…",onSelect:addAnchor,_inputRef:cityInputRef})
+      )
+    ),
+    e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".6rem",color:"var(--muted)",marginBottom:12}},
+      "👨‍👩‍👧 family score · 👤 friends score · Tab label→city · Enter to add"),
+
+    anchors.length===0&&e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".68rem",color:"var(--border)",padding:"14px 0",textAlign:"center",borderTop:"1px dashed var(--border)"}},"No anchors yet"),
+
+    anchors.length>0&&e("div",null,
+      // Anchor rows
+      e("div",{style:{borderTop:"1px solid var(--border)",paddingTop:8,marginBottom:10}},
+        anchors.map((a,i)=>e("div",{
+          key:i,
+          style:{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:"1px solid rgba(34,34,46,.5)"}
+        },
+          // Type toggle
+          e("button",{
+            title:"Toggle type",
+            style:{fontSize:13,background:"transparent",border:"1px solid var(--border)",borderRadius:4,cursor:"pointer",padding:"2px 5px",flexShrink:0},
+            onClick:()=>toggleType(i)
+          },a.type==="family"?"👨‍👩‍👧":"👤"),
+          // Flag + name
+          e("span",{style:{fontSize:15,flexShrink:0}},a.flag),
+          e("div",{style:{flex:1,minWidth:0}},
+            e("div",{style:{fontSize:".8rem",fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}},a.label),
+            e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".6rem",color:"var(--muted)"}},a.city,", ",a.country)
+          ),
+          // Independent number input
+          e("div",{style:{display:"flex",alignItems:"center",gap:4,flexShrink:0}},
+            e("input",{
+              type:"number",min:0,max:100,
+              value:a.weight,
+              onChange:ev=>setWeight(i,ev.target.value),
+              style:{
+                width:58,textAlign:"right",padding:"5px 8px",
+                fontFamily:"DM Mono,monospace",fontSize:".78rem",fontWeight:700,
+                background:"var(--surf2)",border:"1px solid var(--border)",
+                borderRadius:"var(--r)",color:"var(--accent)",outline:"none",
+              },
+            }),
+            e("span",{style:{fontFamily:"DM Mono,monospace",fontSize:".72rem",color:"var(--muted)"}},"%")
+          ),
+          e("button",{className:"btn btn-danger btn-sm",style:{flexShrink:0},onClick:()=>removeAnchor(i)},"✕")
+        ))
+      ),
+      // Total validation row
+      e("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between"}},
+        e("div",{style:{display:"flex",gap:10,fontFamily:"DM Mono,monospace",fontSize:".6rem",color:"var(--muted)"}},
+          familyCount>0&&e("span",{style:{color:"var(--blue)"}},"👨‍👩‍👧 "+familyCount),
+          peopleCount>0&&e("span",{style:{color:"var(--purple)"}},"👤 "+peopleCount),
+        ),
+        e("div",{style:{display:"flex",alignItems:"center",gap:8}},
+          e("span",{style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",color:"var(--muted)"}},"Total:"),
+          e("div",{style:{
+            fontFamily:"DM Mono,monospace",fontSize:".7rem",fontWeight:700,
+            color:isOk?"var(--green)":"var(--red)",
+            background:isOk?"rgba(77,255,145,.1)":"rgba(255,107,107,.1)",
+            border:"1px solid "+(isOk?"rgba(77,255,145,.3)":"rgba(255,107,107,.3)"),
+            borderRadius:20,padding:"3px 12px",
+          }},total+"%"+(isOk?" ✓":" — must equal 100%"))
+        )
+      )
+    )
+  );
+}
+
+// ── API fetchers ─────────────────────────────────────────────
+async function fetchWeather(city,comfortMin,comfortMax){
+  const url="https://climate-api.open-meteo.com/v1/climate?latitude="+city.lat+"&longitude="+city.lon+"&start_date=2010-01-01&end_date=2010-12-31&models=EC_Earth3P_HR&daily=temperature_2m_mean,shortwave_radiation_sum";
+  const r=await fetch(url);if(!r.ok)throw new Error("HTTP "+r.status);
+  const d=await r.json();if(d.error)throw new Error(d.reason||"API error");
+  const temps=(d.daily?.temperature_2m_mean||[]).filter(v=>v!=null);
+  const rads=(d.daily?.shortwave_radiation_sum||[]).filter(v=>v!=null);
+  if(!temps.length)throw new Error("no temp data");
+  const{score:tempScore,raw:tempRaw}=scoreComfortDays(temps,comfortMin,comfortMax);
+  const{score:sunScore,raw:sunRaw}=scoreSunshine(rads.length?rads:[city.staticSunH||2000/0.6]);
+  return{temp:tempScore,tempRaw,sun:sunScore,sunRaw};
+}
+async function fetchAir(city){
+  const end=new Date();end.setDate(end.getDate()-1);
+  const start=new Date(end);start.setFullYear(start.getFullYear()-1);
+  const fmt=d=>d.toISOString().slice(0,10);
+  const url="https://air-quality-api.open-meteo.com/v1/air-quality?latitude="+city.lat+"&longitude="+city.lon+"&hourly=pm2_5&start_date="+fmt(start)+"&end_date="+fmt(end)+"&timezone=UTC";
+  const r=await fetch(url);if(!r.ok)throw new Error("HTTP "+r.status);
+  const d=await r.json();if(d.error)throw new Error(d.reason||"API error");
+  const vals=(d.hourly?.pm2_5||[]).filter(v=>v!=null&&v>=0&&v<500);
+  if(!vals.length)throw new Error("no PM2.5 data");
+  const mean=vals.reduce((a,b)=>a+b,0)/vals.length;
+  return{airQ:scoreAirQuality(mean),airQRaw:mean.toFixed(1)+" µg/m³"};
+}
+async function fetchNumbeoCity(slug,path){
+  const url="https://corsproxy.io/?"+encodeURIComponent("https://www.numbeo.com/"+path+"/in/"+slug);
+  const r=await fetch(url);if(!r.ok)throw new Error("proxy "+r.status);
+  return r.text();
+}
+async function fetchNumbeo(city){
+  const slug=CITY_DB.find(c=>c.city===city.city)?.numbeo||city.city.replace(/\s/g,"-");
+  const res={};
+  try{
+    const h=await fetchNumbeoCity(slug,"cost-of-living");
+    const m=h.match(/Apartment \(1 bedroom\) in City Centre[^<]*<\/td>\s*<td[^>]*>\s*([\d,.]+)/s);
+    if(m){const v=parseFloat(m[1].replace(/,/g,""));res.rent=scoreRent(v);res.rentRaw="$"+Math.round(v)+"/mo";}
+  }catch{}
+  await new Promise(r=>setTimeout(r,250));
+  try{
+    const h=await fetchNumbeoCity(slug,"crime");
+    const m=h.match(/Safety Index.*?<td[^>]*>\s*([\d.]+)/s);
+    if(m){const v=parseFloat(m[1]);res.safety=scoreSafety(v);res.safetyRaw=v.toFixed(1)+"/100";}
+  }catch{}
+  await new Promise(r=>setTimeout(r,250));
+  try{
+    const h=await fetchNumbeoCity(slug,"health-care");
+    const m=h.match(/Health Care Index.*?<td[^>]*>\s*([\d.]+)/s);
+    if(m){const v=parseFloat(m[1]);res.healthcare=scoreHealthcare(v);res.healthcareRaw=v.toFixed(1)+"/100";}
+  }catch{}
+  return res;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  STEP COMPONENTS
+// ═══════════════════════════════════════════════════════════════
+
+// ── Step 1: Setup ────────────────────────────────────────────
+function SetupStep({setup,onChange,onFetch,fetching,pills}){
+  return e("div",{className:"setup-layout"},
+    // Left column
+    e("div",null,
+      // Current city
+      e("div",{className:"card",style:{marginBottom:14}},
+        e("h3",{style:{marginBottom:4}},"Your current city"),
+        e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",color:"var(--muted)",marginBottom:12}},
+          "Where are you living now? This is shown in results for context."),
+        e(CityAutocomplete,{
+          value:setup.currentCityInput||"",
+          onChange:v=>onChange({...setup,currentCityInput:v,currentCity:null}),
+          placeholder:"Search your current city…",
+          onSelect:c=>onChange({...setup,currentCity:c,currentCityInput:c.flag+" "+c.city+", "+c.country}),
+        }),
+        setup.currentCity&&e("div",{style:{marginTop:8,display:"flex",alignItems:"center",gap:8,fontFamily:"DM Mono,monospace",fontSize:".72rem",color:"var(--green)"}},
+          "✓ ",setup.currentCity.flag," ",setup.currentCity.city,", ",setup.currentCity.country
+        )
+      ),
+      // Cities to compare
+      e("div",{className:"card",style:{marginBottom:14}},
+        e("h3",{style:{marginBottom:4}},"Cities to compare"),
+        e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",color:"var(--muted)",marginBottom:12}},
+          "Pick 2–8 cities. Start typing to search."),
+        e(CityPickerList,{
+          cities:setup.cities,
+          onAdd:c=>onChange({...setup,cities:[...setup.cities,c]}),
+          onRemove:i=>onChange({...setup,cities:setup.cities.filter((_,j)=>j!==i)}),
+          placeholder:"Search cities…",
+          maxItems:8
+        })
+      ),
+      // Passports
+      e("div",{className:"card",style:{marginBottom:14}},
+        e("h3",{style:{marginBottom:4}},"Your passports"),
+        e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",color:"var(--muted)",marginBottom:12}},
+          "Visa scores use your best available passport per destination."),
+        e(PassportSelect,{passports:setup.passports,onChange:p=>onChange({...setup,passports:p})})
+      ),
+      // Live data fetch
+      e("div",{className:"card"},
+        e("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}},
+          e("div",null,
+            e("h3",{style:{marginBottom:3}},"Live data"),
+            e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".63rem",color:"var(--muted)"}},
+              "Pulls weather, air quality & Numbeo data for your cities.")
+          ),
+          e("button",{className:"fetch-btn",onClick:onFetch,disabled:fetching||setup.cities.length===0},
+            fetching?"⏳":"⚡"," ",fetching?"Fetching…":"Fetch Live Data")
+        ),
+        pills.length>0&&e("div",{style:{display:"flex",gap:5,flexWrap:"wrap",marginTop:10}},
+          pills.map(p=>e("div",{key:p.id,className:"pill pill-"+p.state},
+            e("div",{className:"pill-dot"+(p.state==="busy"?" blink":"")}),p.label))
+        )
+      )
+    ),
+    // Right column
+    e("div",null,
+      // Unified people & places
+      e("div",{className:"card",style:{marginBottom:14}},
+        e("h3",{style:{marginBottom:12}},"People & places"),
+        e(AnchorEditor,{
+          anchors:setup.allAnchors||[],
+          onChange:a=>{
+            onChange({
+              ...setup,
+              allAnchors:a,
+              familyAnchors:a.filter(x=>x.type==="family"),
+              proximityAnchors:a.filter(x=>x.type==="people"),
+            });
+          },
+        })
+      ),
+      // Languages + temp
+      e("div",{className:"card"},
+        e("h3",{style:{marginBottom:4}},"Languages you speak"),
+        e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",color:"var(--muted)",marginBottom:12}},
+          "Boosts language ease score (+3) when you speak the local language."),
+        e(LanguageSelect,{languages:setup.languages,onChange:l=>onChange({...setup,languages:l})}),
+        e("div",{style:{marginTop:18}},
+          e("h3",{style:{marginBottom:4}},"Temperature comfort range"),
+          e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",color:"var(--muted)",marginBottom:10}},
+            "Days inside this range are counted as comfortable."),
+          e("div",{className:"grid2"},
+            e("div",{className:"input-group"},
+              e("div",{className:"input-label"},"Min °C"),
+              e("input",{className:"input",type:"number",value:setup.tempMin,
+                onChange:ev=>onChange({...setup,tempMin:+ev.target.value})})
+            ),
+            e("div",{className:"input-group"},
+              e("div",{className:"input-label"},"Max °C"),
+              e("input",{className:"input",type:"number",value:setup.tempMax,
+                onChange:ev=>onChange({...setup,tempMax:+ev.target.value})})
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+// ── Step 2: Priorities ───────────────────────────────────────
+function PrioritiesStep({weights,onChange,ranked}){
+  return e("div",{className:"priorities-layout"},
+    e("div",{className:"weights-scroll"},
+      e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".6rem",color:"var(--muted)",letterSpacing:".1em",textTransform:"uppercase",marginBottom:14}},
+        "// Priority weights (0 = ignore · 10 = critical)"),
+      CATS.map(cat=>{
+        const ms=METRIC_DEFS.filter(m=>m.cat===cat);
+        const t=ms[0]?.type||"data";
+        return e("div",{key:cat,className:"weights-cat"},
+          e("div",{className:"weights-cat-title"},
+            cat,
+            e("span",{className:"weight-type "+TYPE_BADGE[t]},TYPE_LABEL[t])
+          ),
+          ms.map(m=>e("div",{key:m.key,className:"weight-row"},
+            e("span",{className:"weight-label"},m.label),
+            e("input",{type:"range",min:0,max:10,value:weights[m.key]||0,
+              onChange:ev=>onChange({...weights,[m.key]:+ev.target.value})}),
+            e("span",{className:"weight-num"},weights[m.key]||0)
+          ))
+        );
+      })
+    ),
+    e("div",{className:"preview-scroll"},
+      ranked.length===0
+        ?e("div",{className:"onboard-empty"},
+          e("div",{className:"big"},"⚖️"),
+          "Add cities in Step 1 first")
+        :e("div",null,
+          e("div",{className:"label",style:{marginBottom:12}},
+            "Live preview — adjusts as you move sliders"),
+          ranked.map((r,i)=>e("div",{key:r.name,style:{
+            display:"flex",alignItems:"center",gap:10,padding:"10px 12px",
+            background:"var(--surf)",border:"1px solid var(--border)",
+            borderLeft:"3px solid "+(i===0?"var(--accent)":i===1?"var(--blue)":i===2?"var(--purple)":"var(--border)"),
+            borderRadius:"var(--r)",marginBottom:8
+          }},
+            e("span",{style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",color:i===0?"var(--accent)":i===1?"var(--blue)":i===2?"var(--purple)":"var(--muted)",width:22}},"#"+(i+1)),
+            e("span",{style:{fontSize:16}},CITY_DB.find(c=>c.city===r.name)?.flag||"🏙️"),
+            e("span",{style:{flex:1,fontWeight:600,fontSize:".9rem"}},r.name),
+            e("div",{style:{flex:2,height:3,background:"var(--surf2)",borderRadius:2,overflow:"hidden"}},
+              e("div",{style:{height:"100%",width:(r.total/((ranked[0]?.total)||100)*100)+"%",background:i===0?"var(--accent)":i===1?"var(--blue)":i===2?"var(--purple)":"#555",borderRadius:2}})
+            ),
+            e("span",{style:{fontFamily:"DM Mono,monospace",fontSize:".82rem",color:"var(--accent)",width:36,textAlign:"right"}},r.total.toFixed(1))
+          ))
+        )
+    )
+  );
+}
+
+// ── Step 3: Output — city cards ──────────────────────────────
+function CityCard({name,rank,total,maxTotal,allScores,weights,liveData}){
+  const[exp,setExp]=useState(false);
+  const db=CITY_DB.find(c=>c.city===name)||{};
+  const{scores,raws,isLive}=allScores;
+  const barW=(total/(maxTotal||1)*100).toFixed(1);
+  const rCls="city-result-card rank"+Math.min(rank,4);
+
+  const ms=METRIC_DEFS.filter(m=>(weights[m.key]||0)>0);
+  const top=[...ms].sort((a,b)=>(scores[b.key]||0)*(weights[b.key]||0)-(scores[a.key]||0)*(weights[a.key]||0)).slice(0,6);
+  const show=exp?ms:top;
+
+  return e("div",{className:rCls,onClick:()=>setExp(x=>!x)},
+    e("div",{className:"card-header-row"},
+      e("div",{className:"card-rank-num"},"#"+rank),
+      e("span",{style:{fontSize:18,marginRight:2}},db.flag||"🏙️"),
+      e("div",{className:"card-city-name"},name),
+      e("div",{className:"card-total"},total.toFixed(1)),
+      e("div",{className:"expand-arrow"},exp?"▲":"▼")
+    ),
+    e("div",{className:"bar-track"},e("div",{className:"bar-fill",style:{width:barW+"%"}})),
+    e("div",{className:"metric-chips"},
+      show.map(m=>{
+        const v=scores[m.key]??0;
+        const live=isLive[m.key];
+        const calc=m.type==="dynamic";
+        const cls="mchip"+(live?" live":calc?" calc":"")+(v>=7.5?" hi":v<3.5?" lo":"");
+        const dotC=live?"var(--blue)":calc?"var(--purple)":"var(--orange)";
+        return e("div",{key:m.key,className:cls},
+          e("div",{className:"mchip-dot",style:{background:dotC}}),
+          e("div",{className:"mchip-key"},m.label),
+          e("div",{className:"mchip-val "+(v>=7.5?"hi":v<3.5?"lo":"")},v.toFixed(1)),
+          raws[m.key]&&e("div",{className:"mchip-raw"},raws[m.key])
+        );
+      })
+    )
+  );
+}
+
+// ── Step 3: Summary ──────────────────────────────────────────
+function SummaryPanel({ranked,allScoresMap,weights}){
+  const barRef=useRef(null);
+  const radarRef=useRef(null);
+  const barChart=useRef(null);
+  const radarChart=useRef(null);
+  const CITY_COLORS=["#e8ff47","#47c4ff","#b47bff","#4dff91","#ffb347","#ff6b6b","#fff","#888"];
+
+  useEffect(()=>{
+    if(!barRef.current||!ranked.length)return;
+    if(barChart.current)barChart.current.destroy();
+    barChart.current=new Chart(barRef.current,{
+      type:"bar",
+      data:{
+        labels:ranked.map(r=>{const db=CITY_DB.find(c=>c.city===r.name);return(db?.flag||"")+" "+r.name;}),
+        datasets:[{data:ranked.map(r=>+r.total.toFixed(1)),backgroundColor:ranked.map((_,i)=>CITY_COLORS[i]||"#888"),borderRadius:4,borderSkipped:false}]
+      },
+      options:{indexAxis:"y",plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.x.toFixed(1)+"/100"}}},scales:{x:{min:0,max:100,grid:{color:"#22222e"},ticks:{color:"#55556a",font:{family:"DM Mono, monospace",size:10}}},y:{grid:{display:false},ticks:{color:"#b0b0c0",font:{family:"Syne, sans-serif",size:11}}}},animation:{duration:400}}
+    });
+  },[ranked.map(r=>r.total).join(",")]);
+
+  useEffect(()=>{
+    if(!radarRef.current||!ranked.length)return;
+    if(radarChart.current)radarChart.current.destroy();
+    const cats=CATS;
+    const datasets=ranked.slice(0,4).map((r,i)=>{
+      const scores=allScoresMap[r.name]?.scores||{};
+      const data=cats.map(cat=>{
+        const ms=METRIC_DEFS.filter(m=>m.cat===cat&&(weights[m.key]||0)>0);
+        if(!ms.length)return 0;
+        return +(ms.reduce((s,m)=>s+(scores[m.key]||0),0)/ms.length).toFixed(1);
+      });
+      const db=CITY_DB.find(c=>c.city===r.name);
+      return{label:(db?.flag||"")+" "+r.name,data,borderColor:CITY_COLORS[i],backgroundColor:CITY_COLORS[i]+"18",pointBackgroundColor:CITY_COLORS[i],borderWidth:1.5};
+    });
+    radarChart.current=new Chart(radarRef.current,{
+      type:"radar",
+      data:{labels:cats.map(c=>c.replace(/^.+\s/,"")),datasets},
+      options:{plugins:{legend:{position:"bottom",labels:{color:"#66668a",font:{family:"DM Mono, monospace",size:9},boxWidth:10,padding:8}}},scales:{r:{grid:{color:"#22222e"},ticks:{display:false},pointLabels:{color:"#66668a",font:{family:"DM Mono, monospace",size:9}},min:0,max:10}},animation:{duration:400}}
+    });
+  },[ranked.map(r=>r.name).join(","),JSON.stringify(weights)]);
+
+  const winner=ranked[0];
+  return e("div",null,
+    winner&&e("div",{className:"winner-banner"},
+      e("div",{className:"winner-flag"},CITY_DB.find(c=>c.city===winner.name)?.flag||"🏙️"),
+      e("div",null,
+        e("div",{className:"label",style:{marginBottom:4}},"Top recommendation"),
+        e("div",{style:{display:"flex",alignItems:"baseline",gap:8}},
+          e("div",{style:{fontSize:"1.3rem",fontWeight:800,letterSpacing:"-.02em"}},winner.name),
+          e("div",{className:"winner-score"},winner.total.toFixed(1))
+        )
+      )
+    ),
+    e("div",{className:"grid2",style:{marginBottom:16}},
+      e("div",{className:"card-sm"},
+        e("div",{className:"label",style:{marginBottom:8}},"Overall Rankings"),
+        e("canvas",{ref:barRef,height:160})
+      ),
+      e("div",{className:"card-sm"},
+        e("div",{className:"label",style:{marginBottom:8}},"Category Radar (top 4)"),
+        e("canvas",{ref:radarRef,height:160})
+      )
+    ),
+    e("div",{className:"card-sm"},
+      e("div",{className:"label",style:{marginBottom:10}},"Category Breakdown"),
+      e("div",{style:{overflowX:"auto"}},
+        e("table",{className:"summary-table"},
+          e("thead",null,e("tr",null,
+            e("th",null,"Category"),
+            ...ranked.map(r=>e("th",{key:r.name},CITY_DB.find(c=>c.city===r.name)?.flag||"","",r.name))
+          )),
+          e("tbody",null,
+            CATS.map(cat=>{
+              const ms=METRIC_DEFS.filter(m=>m.cat===cat&&(weights[m.key]||0)>0);
+              if(!ms.length)return null;
+              const catS=ranked.map(r=>{const scores=allScoresMap[r.name]?.scores||{};return ms.reduce((s,m)=>s+(scores[m.key]||0),0)/ms.length;});
+              const maxC=Math.max(...catS);
+              return e("tr",{key:cat},
+                e("td",{style:{color:"var(--dim)"}},cat),
+                ...catS.map((s,i)=>e("td",{key:i},
+                  e("div",{className:"mini-bar-wrap"},
+                    e("div",{className:"mini-bar-bg"},
+                      e("div",{className:"mini-bar-fill",style:{width:(s/maxC*100).toFixed(0)+"%",background:s===maxC?"var(--accent)":CITY_COLORS[i]||"#555"}})
+                    ),
+                    e("span",{style:{fontFamily:"DM Mono,monospace",fontSize:".7rem",color:s===maxC?"var(--accent)":"var(--text)",fontWeight:s===maxC?700:400}},s.toFixed(1))
+                  )
+                ))
+              );
+            }).filter(Boolean),
+            e("tr",{style:{borderTop:"2px solid var(--border)"}},
+              e("td",{style:{fontWeight:700,fontSize:".8rem"}},"TOTAL"),
+              ...ranked.map((r,i)=>e("td",{key:i},
+                e("span",{style:{fontFamily:"DM Mono,monospace",fontWeight:700,fontSize:".88rem",color:i===0?"var(--accent)":"var(--text)"}},r.total.toFixed(1))
+              ))
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+// ── Step 3: Metrics detail ───────────────────────────────────
+function MetricsPanel({ranked,allScoresMap}){
+  const[sel,setSel]=useState(METRIC_DEFS[0].key);
+  const m=METRIC_DEFS.find(x=>x.key===sel);
+  const dotC=TYPE_DOT_COLOR[m?.type]||"var(--muted)";
+
+  return e("div",{className:"metric-list-wrap"},
+    e("div",{className:"metric-list-inner"},
+      CATS.map(cat=>e("div",{key:cat},
+        e("div",{className:"ml-cat"},cat),
+        METRIC_DEFS.filter(x=>x.cat===cat).map(x=>e("div",{
+          key:x.key,
+          className:"ml-item"+(sel===x.key?" active":""),
+          onClick:()=>setSel(x.key)
+        },
+          e("div",{style:{width:5,height:5,borderRadius:"50%",background:TYPE_DOT_COLOR[x.type],flexShrink:0}}),
+          x.label
+        ))
+      ))
+    ),
+    m&&e("div",{className:"metric-detail-inner"},
+      e("div",{style:{display:"flex",alignItems:"flex-start",gap:12,marginBottom:12}},
+        e("div",{style:{flex:1}},
+          e("h2",{style:{marginBottom:6}},m.label),
+          e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",color:"var(--muted)",marginBottom:6}},m.source)
+        ),
+        e("div",{style:{background:dotC+"20",border:"1px solid "+dotC+"44",color:dotC,borderRadius:20,padding:"3px 10px",fontFamily:"DM Mono,monospace",fontSize:".56rem",whiteSpace:"nowrap",letterSpacing:".07em"}},TYPE_LABEL[m.type])
+      ),
+      e("div",{className:"logic-box"},
+        e("div",{className:"box-label"},"💡 Why this formula?"),
+        e("p",null,m.logic)
+      ),
+      e("div",{className:"formula-box"},
+        e("div",{className:"box-label",style:{color:"var(--muted)"}},"Formula"),
+        e("pre",null,m.formula)
+      ),
+      ranked.length>0&&e("table",{className:"metric-score-table",style:{marginTop:8}},
+        e("thead",null,e("tr",null,e("th",null,"City"),e("th",null,"Raw value"),e("th",null,"Score"))),
+        e("tbody",null,ranked.map(r=>{
+          const data=allScoresMap[r.name]||{};
+          const v=data.scores?.[m.key]??0;
+          const raw=data.raws?.[m.key]||"—";
+          const db=CITY_DB.find(c=>c.city===r.name);
+          const cls=v>=7.5?"hi":v<3.5?"lo":"";
+          return e("tr",{key:r.name},
+            e("td",null,e("span",{style:{marginRight:6}},db?.flag||""),"",r.name),
+            e("td",{style:{fontFamily:"DM Mono,monospace",fontSize:".67rem",color:"var(--muted)"}},raw),
+            e("td",null,e("div",{className:"score-bar-wrap"},
+              e("div",{className:"score-bar-bg"},e("div",{className:"score-bar-fill",style:{width:(v*10)+"%"}})),
+              e("div",{className:"score-num "+cls},v.toFixed(1))
+            ))
+          );
+        }))
+      )
+    )
+  );
+}
+
+// ── Explanations panel ───────────────────────────────────────
+function ExplanationsPanel({ranked,allScoresMap,weights,setup}){
+  const winner=ranked[0];
+  const CITY_COLORS=["var(--accent)","var(--blue)","var(--purple)","var(--green)","var(--orange)","var(--red)"];
+  if(!winner)return e("div",{className:"onboard-empty"},e("div",{className:"big"},"💡"),"Add cities first");
+
+  // Build per-city narrative
+  const cityNarrative=(r,rank)=>{
+    const s=allScoresMap[r.name]?.scores||{};
+    const db=CITY_DB.find(c=>c.city===r.name)||{};
+    const strengths=METRIC_DEFS
+      .filter(m=>(weights[m.key]||0)>0&&(s[m.key]||0)>=7.5)
+      .sort((a,b)=>(s[b.key]||0)*(weights[b.key]||0)-(s[a.key]||0)*(weights[a.key]||0))
+      .slice(0,4);
+    const weaknesses=METRIC_DEFS
+      .filter(m=>(weights[m.key]||0)>0&&(s[m.key]||0)<3.5)
+      .sort((a,b)=>(s[a.key]||0)*(weights[a.key]||0)-(s[b.key]||0)*(weights[b.key]||0))
+      .slice(0,3);
+    const color=CITY_COLORS[rank-1]||"var(--muted)";
+    return e("div",{key:r.name,style:{marginBottom:16,background:"var(--surf)",border:"1px solid var(--border)",borderLeft:"3px solid "+color,borderRadius:"var(--r2)",padding:16}},
+      e("div",{style:{display:"flex",alignItems:"baseline",gap:10,marginBottom:10}},
+        e("span",{style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",color,width:22}},"#"+rank),
+        e("span",{style:{fontSize:18}},db.flag||"🏙️"),
+        e("span",{style:{fontWeight:700,fontSize:"1rem",flex:1}},r.name),
+        e("span",{style:{fontFamily:"DM Mono,monospace",fontSize:".9rem",color}},r.total.toFixed(1)+"/100")
+      ),
+      strengths.length>0&&e("div",{style:{marginBottom:8}},
+        e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".57rem",color:"var(--green)",letterSpacing:".08em",textTransform:"uppercase",marginBottom:5}},"✓ Strengths"),
+        e("div",{style:{display:"flex",flexWrap:"wrap",gap:5}},
+          strengths.map(m=>e("span",{key:m.key,style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",padding:"2px 8px",borderRadius:20,background:"rgba(77,255,145,.1)",border:"1px solid rgba(77,255,145,.2)",color:"var(--green)"}},m.label+" ",(s[m.key]||0).toFixed(1)))
+        )
+      ),
+      weaknesses.length>0&&e("div",null,
+        e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".57rem",color:"var(--red)",letterSpacing:".08em",textTransform:"uppercase",marginBottom:5}},"✗ Challenges"),
+        e("div",{style:{display:"flex",flexWrap:"wrap",gap:5}},
+          weaknesses.map(m=>e("span",{key:m.key,style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",padding:"2px 8px",borderRadius:20,background:"rgba(255,107,107,.1)",border:"1px solid rgba(255,107,107,.2)",color:"var(--red)"}},m.label+" ",(s[m.key]||0).toFixed(1)))
+        )
+      ),
+      strengths.length===0&&weaknesses.length===0&&e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".68rem",color:"var(--muted)"}},"No metrics with weight > 0 scoring at extremes.")
+    );
+  };
+
+  return e("div",null,
+    // How scoring works
+    e("div",{style:{background:"var(--surf)",border:"1px solid var(--border)",borderRadius:"var(--r2)",padding:16,marginBottom:16}},
+      e("h3",{style:{marginBottom:8}},"How the scoring works"),
+      e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".72rem",color:"var(--dim)",lineHeight:1.7}},
+        "Each city is scored on 17 metrics grouped into 8 categories. Every metric is normalized to 0–10 using real data sources (Open-Meteo, Numbeo, EF EPI, etc.). Your priority weights (set in Step 2) multiply each score — a metric you set to 0 is ignored entirely, one set to 10 has maximum influence.",
+        e("br",null),e("br",null),
+        "Final score = (Σ metric_score × weight) / (Σ 10 × weight) × 100. A score of 80 means the city scored 80% of the maximum possible given your weights.",
+        e("br",null),e("br",null),
+        "Dynamic metrics (visa, family proximity, language) are re-computed live whenever your setup changes. Live API metrics (weather, air quality, Numbeo) are fetched on demand and cached in your browser."
+      )
+    ),
+    // Per-city narratives
+    e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".6rem",color:"var(--muted)",letterSpacing:".08em",textTransform:"uppercase",marginBottom:10}},"Per-city analysis"),
+    ranked.map((r,i)=>cityNarrative(r,i+1))
+  );
+}
+
+// ── Sensitivity panel ─────────────────────────────────────────
+function SensitivityPanel({ranked,allScoresMap,weights}){
+  const[hoverKey,setHoverKey]=useState(null);
+  const CITY_COLORS=["var(--accent)","var(--blue)","var(--purple)","var(--green)","var(--orange)","var(--red)"];
+  if(ranked.length<2)return e("div",{className:"onboard-empty"},e("div",{className:"big"},"📐"),"Add at least 2 cities first");
+
+  // For each metric with weight > 0, compute what happens if we max it (weight=10) vs zero it
+  const activeMetrics=METRIC_DEFS.filter(m=>(weights[m.key]||0)>0);
+
+  const scenarioRanking=(overrideWeights)=>{
+    const w={...weights,...overrideWeights};
+    return ranked
+      .map(r=>({name:r.name,total:scoreCityTotal(allScoresMap[r.name]?.scores||{},w)}))
+      .sort((a,b)=>b.total-a.total);
+  };
+
+  const baseWinner=ranked[0]?.name;
+
+  const scenarios=activeMetrics.map(m=>{
+    const maxRanking=scenarioRanking({[m.key]:10});
+    const zeroRanking=scenarioRanking({[m.key]:0});
+    const maxWinner=maxRanking[0]?.name;
+    const zeroWinner=zeroRanking[0]?.name;
+    const changesMax=maxWinner!==baseWinner;
+    const changesZero=zeroWinner!==baseWinner;
+    return{metric:m,maxRanking,zeroRanking,maxWinner,zeroWinner,changesMax,changesZero};
+  }).filter(s=>s.changesMax||s.changesZero);
+
+  const noChange=activeMetrics.filter(m=>{
+    const maxW=scenarioRanking({[m.key]:10})[0]?.name;
+    const zeroW=scenarioRanking({[m.key]:0})[0]?.name;
+    return maxW===baseWinner&&zeroW===baseWinner;
+  });
+
+  return e("div",null,
+    // Intro
+    e("div",{style:{background:"var(--surf)",border:"1px solid var(--border)",borderRadius:"var(--r2)",padding:14,marginBottom:16}},
+      e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".72rem",color:"var(--dim)",lineHeight:1.65}},
+        "Sensitivity analysis asks: ",e("em",{style:{color:"var(--accent)"}},"\"what would flip the #1 result?\""),
+        " For each metric, we test what happens to the ranking if you max it (weight=10) or remove it (weight=0). Scenarios that don't change the winner are stable; ones that do are shown below."
+      )
+    ),
+    // Current winner
+    e("div",{style:{background:"rgba(232,255,71,.07)",border:"1px solid rgba(232,255,71,.25)",borderRadius:"var(--r)",padding:"10px 14px",marginBottom:14,fontFamily:"DM Mono,monospace",fontSize:".72rem"}},
+      "Current #1: ",e("strong",{style:{color:"var(--accent)"}},CITY_DB.find(c=>c.city===baseWinner)?.flag||"🏙️"," ",baseWinner),
+      " — shown below are metrics that would change this outcome if you weighted them differently."
+    ),
+
+    scenarios.length===0&&e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".75rem",color:"var(--green)",padding:"14px 0",textAlign:"center"}},
+      "✓ The current #1 ranking is robust — no single metric change flips it."
+    ),
+
+    scenarios.map(s=>e("div",{
+      key:s.metric.key,
+      style:{background:"var(--surf)",border:"1px solid "+(hoverKey===s.metric.key?"var(--border)":"var(--border)"),borderRadius:"var(--r)",padding:"12px 14px",marginBottom:8,transition:"border-color .15s"},
+      onMouseEnter:()=>setHoverKey(s.metric.key),
+      onMouseLeave:()=>setHoverKey(null),
+    },
+      e("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8}},
+        e("div",{style:{flex:1,fontWeight:600,fontSize:".82rem"}},s.metric.label),
+        e("span",{style:{fontFamily:"DM Mono,monospace",fontSize:".6rem",color:"var(--orange)",background:"rgba(255,179,71,.1)",border:"1px solid rgba(255,179,71,.25)",borderRadius:20,padding:"2px 8px"}},"current weight: "+weights[s.metric.key])
+      ),
+      e("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}},
+        // Max scenario
+        e("div",{style:{background:"var(--surf2)",borderRadius:4,padding:"8px 10px"}},
+          e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".57rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:".07em",marginBottom:5}},"If weight = 10 (max)"),
+          s.maxRanking.slice(0,3).map((r,i)=>e("div",{key:r.name,style:{display:"flex",alignItems:"center",gap:6,marginBottom:3}},
+            e("span",{style:{fontFamily:"DM Mono,monospace",fontSize:".6rem",color:i===0?CITY_COLORS[ranked.findIndex(x=>x.name===r.name)]:"var(--muted)",width:16}},"#"+(i+1)),
+            e("span",{style:{fontSize:12}},CITY_DB.find(c=>c.city===r.name)?.flag||""),
+            e("span",{style:{fontSize:".75rem",fontWeight:i===0?700:400,color:i===0&&s.changesMax?"var(--accent)":"var(--text)"}},r.name),
+            i===0&&s.changesMax&&e("span",{style:{fontFamily:"DM Mono,monospace",fontSize:".55rem",color:"var(--accent)",marginLeft:4}},"← NEW #1")
+          ))
+        ),
+        // Zero scenario
+        e("div",{style:{background:"var(--surf2)",borderRadius:4,padding:"8px 10px"}},
+          e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".57rem",color:"var(--muted)",textTransform:"uppercase",letterSpacing:".07em",marginBottom:5}},"If weight = 0 (ignored)"),
+          s.zeroRanking.slice(0,3).map((r,i)=>e("div",{key:r.name,style:{display:"flex",alignItems:"center",gap:6,marginBottom:3}},
+            e("span",{style:{fontFamily:"DM Mono,monospace",fontSize:".6rem",color:i===0?CITY_COLORS[ranked.findIndex(x=>x.name===r.name)]:"var(--muted)",width:16}},"#"+(i+1)),
+            e("span",{style:{fontSize:12}},CITY_DB.find(c=>c.city===r.name)?.flag||""),
+            e("span",{style:{fontSize:".75rem",fontWeight:i===0?700:400,color:i===0&&s.changesZero?"var(--accent)":"var(--text)"}},r.name),
+            i===0&&s.changesZero&&e("span",{style:{fontFamily:"DM Mono,monospace",fontSize:".55rem",color:"var(--accent)",marginLeft:4}},"← NEW #1")
+          ))
+        )
+      )
+    )),
+
+    noChange.length>0&&e("div",{style:{marginTop:14}},
+      e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".6rem",color:"var(--muted)",letterSpacing:".07em",textTransform:"uppercase",marginBottom:8}},"Stable metrics (no impact on #1)"),
+      e("div",{style:{display:"flex",flexWrap:"wrap",gap:5}},
+        noChange.map(m=>e("span",{key:m.key,style:{fontFamily:"DM Mono,monospace",fontSize:".63rem",padding:"2px 8px",borderRadius:20,background:"rgba(77,255,145,.07)",border:"1px solid rgba(77,255,145,.15)",color:"var(--green)"}},m.label))
+      )
+    )
+  );
+}
+
+// ── Step 3: Output wrapper ───────────────────────────────────
+function OutputStep({ranked,allScoresMap,weights,setup}){
+  const[tab,setTab]=useState("summary");
+  return e("div",{className:"output-layout"},
+    // Left: city cards
+    e("div",{className:"output-left"},
+      e("div",{style:{marginBottom:14}},
+        e("div",{className:"label"},"Rankings · click to expand"),
+      ),
+      ranked.length===0
+        ?e("div",{className:"onboard-empty"},e("div",{className:"big"},"🏙️"),"Add cities in Step 1 to see results")
+        :e("div",null,
+          ranked.map((r,i)=>e(CityCard,{
+            key:r.name,name:r.name,rank:i+1,total:r.total,
+            maxTotal:ranked[0]?.total||100,
+            allScores:allScoresMap[r.name]||{scores:{},raws:{},isLive:{}},
+            weights,liveData:{}
+          })),
+          e("div",{className:"legend-row"},
+            [["var(--blue)","Live API"],["var(--purple)","Calculated"],["var(--orange)","Sourced"],
+             ["var(--green)","≥ 7.5"],["var(--red)","< 3.5"]].map(([c,l])=>
+              e("div",{key:l,className:"legend-item"},e("div",{className:"ldot",style:{background:c}}),l)
+            )
+          )
+        )
+    ),
+    // Right: tabs — summary is default, no click needed
+    e("div",{className:"output-right"},
+      e("div",{className:"output-tabs"},
+        [["summary","📊 Summary"],["explain","💡 Explanations"],["sensitivity","📐 Sensitivity"],["metrics","🔬 Metrics"]].map(([id,lbl])=>
+          e("div",{key:id,className:"ot"+(tab===id?" active":""),onClick:()=>setTab(id)},lbl)
+        )
+      ),
+      tab==="summary"&&(ranked.length
+        ?e(SummaryPanel,{ranked,allScoresMap,weights})
+        :e("div",{className:"onboard-empty"},e("div",{className:"big"},"📊"),"Add cities first")),
+      tab==="explain"&&e(ExplanationsPanel,{ranked,allScoresMap,weights,setup}),
+      tab==="sensitivity"&&e(SensitivityPanel,{ranked,allScoresMap,weights}),
+      tab==="metrics"&&e(MetricsPanel,{ranked,allScoresMap})
+    )
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ROOT APP
+// ═══════════════════════════════════════════════════════════════
+function App(){
+  const saved=loadState()||{};
+
+  const[step,setStep]=useState(saved.step||0);
+  const[setup,setSetup]=useState(saved.setup||{
+    cities:[],passports:[],
+    allAnchors:[],familyAnchors:[],proximityAnchors:[],
+    languages:[],tempMin:10,tempMax:25,
+    currentCity:null,currentCityInput:"",
+  });
+  const[weights,setWeights]=useState(saved.weights||DEFAULT_WEIGHTS);
+  const[liveData,setLiveData]=useState(saved.liveData||{});
+  const[pills,setPills]=useState([]);
+  const[fetching,setFetching]=useState(false);
+
+  // Save on every change
+  useEffect(()=>{saveState({step,setup,weights,liveData});},[step,setup,weights,liveData]);
+
+  const config=useMemo(()=>({
+    passports:setup.passports,
+    languages:setup.languages,
+    familyAnchors:setup.familyAnchors,
+    proximityAnchors:setup.proximityAnchors,
+  }),[setup]);
+
+  const allScoresMap=useMemo(()=>{
+    const m={};
+    for(const c of setup.cities){
+      m[c.city]=buildScores(c.city,c,config,liveData);
+    }
+    return m;
+  },[setup.cities,config,liveData,weights]);
+
+  const ranked=useMemo(()=>{
+    return setup.cities
+      .map(c=>{const d=allScoresMap[c.city];return{name:c.city,total:d?scoreCityTotal(d.scores,weights):0};})
+      .sort((a,b)=>b.total-a.total);
+  },[allScoresMap,weights]);
+
+  const setPill=useCallback((id,label,state)=>{
+    setPills(prev=>[...prev.filter(p=>p.id!==id),{id,label,state}]);
+  },[]);
+
+  const handleFetch=useCallback(async()=>{
+    if(fetching)return;
+    setFetching(true);
+    for(const city of setup.cities){
+      const db=CITY_DB.find(c=>c.city===city.city)||city;
+      setPill("w_"+city.city,db.flag+" "+city.city+" weather…","busy");
+      try{
+        const w=await fetchWeather(db,setup.tempMin,setup.tempMax);
+        setLiveData(d=>({...d,[city.city]:{...(d[city.city]||{}),...w}}));
+        setPill("w_"+city.city,db.flag+" weather ✓","ok");
+      }catch(e){setPill("w_"+city.city,db.flag+" weather ✗ ("+e.message.slice(0,20)+")","err");}
+      setPill("a_"+city.city,db.flag+" "+city.city+" air…","busy");
+      try{
+        const a=await fetchAir(db);
+        setLiveData(d=>({...d,[city.city]:{...(d[city.city]||{}),...a}}));
+        setPill("a_"+city.city,db.flag+" air ✓","ok");
+      }catch(e){setPill("a_"+city.city,db.flag+" air ✗","err");}
+      setPill("n_"+city.city,db.flag+" Numbeo…","busy");
+      try{
+        const n=await fetchNumbeo(db);
+        setLiveData(d=>({...d,[city.city]:{...(d[city.city]||{}),...n}}));
+        setPill("n_"+city.city,db.flag+" Numbeo ✓","ok");
+      }catch(e){setPill("n_"+city.city,db.flag+" Numbeo ✗","err");}
+      await new Promise(r=>setTimeout(r,300));
+    }
+    setFetching(false);
+  },[setup.cities,setup.tempMin,setup.tempMax,fetching,setPill]);
+
+  const canAdvance=[
+    setup.cities.length>=2,
+    true,
+    true
+  ];
+  // Block step 1→2 if anchors are set but don't sum to 100
+  const anchorTotal=(setup.allAnchors||[]).reduce((s,a)=>s+a.weight,0);
+  if(setup.allAnchors?.length>0&&anchorTotal!==100)canAdvance[0]=false;
+
+  const STEPS=[
+    {label:"1. Setup",icon:"⚙️"},
+    {label:"2. Priorities",icon:"⚖️"},
+    {label:"3. Results",icon:"📊"},
+  ];
+
+  return e("div",{className:"page"},
+    e("div",{className:"app-header"},
+      e("div",{style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:10,marginBottom:16}},
+        e("div",null,
+          e("h1",null,"Where should you ",e("span",{style:{color:"var(--accent)"}},"move?")),
+          e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",color:"var(--muted)",marginTop:4}},
+            "Data-driven relocation scoring · "+setup.cities.length+" cities · 17 metrics")
+        ),
+        e("div",{style:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginTop:4}},
+          setup.currentCity&&e("span",{className:"tag"},"📍 ",setup.currentCity.flag," ",setup.currentCity.city),
+          setup.passports.map(p=>e("span",{key:p,className:"tag tag-y"},"🛂 ",p)),
+          setup.languages.slice(0,2).map(l=>e("span",{key:l,className:"tag"},"💬 ",l)),
+          setup.languages.length>2&&e("span",{className:"tag"},"+",setup.languages.length-2," more"),
+          (setup.allAnchors||[]).length>0&&e("span",{className:"tag tag-b"},"👥 ",(setup.allAnchors||[]).length," anchor"+(((setup.allAnchors||[]).length>1)?"s":"")),
+          e("button",{className:"btn btn-ghost btn-sm",onClick:()=>{if(window.confirm("Reset everything? This clears all your data.")){localStorage.removeItem(LS_KEY);location.reload();}}},"Reset")
+        )
+      ),
+      e("div",{className:"step-bar"},
+        STEPS.map((s,i)=>e("div",{
+          key:i,
+          className:"step-item"+(step===i?" active":i<step?" done":""),
+          onClick:()=>{if(i<=step||(canAdvance[step]&&i===step+1))setStep(i);}
+        },
+          e("div",{className:"step-num"},i<step?"✓":i+1),
+          s.label
+        )),
+        e("div",{style:{flex:1}}),
+        step<2&&e("button",{
+          className:"btn btn-primary btn-sm",
+          disabled:!canAdvance[step],
+          onClick:()=>setStep(s=>s+1)
+        },step===1?"See Results →":"Next →"),
+        step>0&&e("button",{className:"btn btn-ghost btn-sm",style:{marginLeft:6},onClick:()=>setStep(s=>s-1)},"← Back")
+      )
+    ),
+    step===0&&e(SetupStep,{setup,onChange:setSetup,onFetch:handleFetch,fetching,pills}),
+    step===1&&e(PrioritiesStep,{weights,onChange:setWeights,ranked}),
+    step===2&&e(OutputStep,{ranked,allScoresMap,weights,setup})
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
