@@ -95,6 +95,7 @@ h3{font-size:.85rem;font-weight:700;}
 .pill-dot{width:5px;height:5px;border-radius:50%;background:currentColor;}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
 .blink{animation:blink 1s ease-in-out infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
 
 /* ── Slider ── */
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:3px;background:var(--border);border-radius:2px;outline:none;cursor:pointer;min-width:0;display:block;}
@@ -220,13 +221,60 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 
 /* ── Responsive ── */
 @media(max-width:760px){
-  .setup-layout,.priorities-layout,.output-layout,.grid2,.metric-list-wrap{grid-template-columns:1fr;}
-  .weights-scroll{border-right:none;border-bottom:1px solid var(--border);height:auto;}
-  .output-left,.output-right,.preview-scroll{height:auto;}
-  .output-layout{height:auto;}
-  .app-header{padding:14px 16px 0;}
-  .setup-layout,.priorities-layout{padding:16px;height:auto;}
-  .output-left,.output-right{padding:14px;}
+  /* Allow the page to scroll naturally on mobile */
+  html,body{height:auto;overflow-y:auto;}
+  .page{min-height:100vh;height:auto;}
+  .app-body{overflow:visible;}
+  /* ── Single-column everything ── */
+  .setup-layout,.priorities-layout,.output-layout,.grid2,.grid3,.metric-list-wrap{
+    grid-template-columns:1fr;
+  }
+  /* ── Kill fixed heights on all panels — scroll naturally ── */
+  .setup-layout,.priorities-layout,.output-layout,.weights-scroll,.preview-scroll,
+  .output-left,.output-right,.metric-list-inner,.metric-detail-inner{
+    height:auto;max-height:none;overflow:visible;
+  }
+  /* ── Remove side borders that made sense in 2-col but not 1-col ── */
+  .weights-scroll,.metric-list-inner{border-right:none;border-bottom:1px solid var(--border);}
+  /* ── Header ── */
+  .app-header{padding:12px 14px 0;}
+  h1{font-size:1.3rem;}
+  /* ── Reduce padding on all layout containers ── */
+  .setup-layout{padding:12px 14px;}
+  .output-left,.output-right{padding:12px;}
+  /* ── Step bar: compress text ── */
+  .step-item{padding:8px 10px;font-size:.58rem;letter-spacing:.03em;}
+  .step-num{width:16px;height:16px;font-size:.5rem;}
+  /* ── Cards ── */
+  .card{padding:14px;}
+  /* ── Autocomplete dropdown: ensure it doesn't overflow viewport ── */
+  .ac-dropdown{max-height:180px;}
+  /* ── Anchor editor: stack the 3-column add form ── */
+  .anchor-add-grid{grid-template-columns:1fr!important;}
+  /* ── Output tabs: wrap and compress ── */
+  .output-tabs{flex-wrap:wrap;gap:0;}
+  .ot{font-size:.6rem;padding:7px 10px;}
+  /* ── City result cards: smaller chips ── */
+  .metric-chips{grid-template-columns:repeat(auto-fill,minmax(90px,1fr));}
+  .mchip-val{font-size:.74rem;}
+  /* ── Summary charts: don't let canvas overflow ── */
+  .charts-row{grid-template-columns:1fr;}
+  canvas{max-width:100%;}
+  /* ── Priority weights panel ── */
+  .weights-cat-title{font-size:.6rem;}
+  .weight-label{font-size:.66rem;}
+  /* ── Metric list: horizontal scroll instead of sidebar ── */
+  .metric-list-wrap{display:flex;flex-direction:column;}
+  .metric-list-inner{display:flex;flex-wrap:wrap;gap:4px;padding:10px;border-bottom:1px solid var(--border);border-right:none;}
+  .ml-cat{display:none;}
+  .ml-item{padding:4px 8px;font-size:.62rem;border:1px solid var(--border)!important;}
+  /* ── Summary table: allow horizontal scroll ── */
+  .table-box{overflow-x:auto;}
+  /* ── Fetch button: full width on mobile ── */
+  .fetch-btn{width:100%;justify-content:center;}
+  /* ── Winner banner: stack ── */
+  .winner-banner{flex-direction:column;gap:8px;}
+  .winner-flag{font-size:32px;}
 }
 </style>
 </head>
@@ -313,6 +361,29 @@ const CITY_DB=[
   {city:"Nicosia",country:"Cyprus",flag:"🇨🇾",lat:35.1856,lon:33.3823,numbeo:"Nicosia"},
   {city:"Limassol",country:"Cyprus",flag:"🇨🇾",lat:34.6786,lon:33.0413,numbeo:"Limassol"},
   {city:"Dublin",country:"Ireland",flag:"🇮🇪",lat:53.3498,lon:-6.2603,numbeo:"Dublin"},
+  // Southeast Asia
+  {city:"Bangkok",country:"Thailand",flag:"🇹🇭",lat:13.7563,lon:100.5018,numbeo:"Bangkok"},
+  {city:"Chiang Mai",country:"Thailand",flag:"🇹🇭",lat:18.7883,lon:98.9853,numbeo:"Chiang-Mai"},
+  {city:"Phuket",country:"Thailand",flag:"🇹🇭",lat:7.9519,lon:98.3381,numbeo:"Phuket"},
+  {city:"Bali",country:"Indonesia",flag:"🇮🇩",lat:-8.6705,lon:115.2126,numbeo:"Denpasar"},
+  {city:"Ho Chi Minh City",country:"Vietnam",flag:"🇻🇳",lat:10.8231,lon:106.6297,numbeo:"Ho-Chi-Minh-City"},
+  {city:"Hanoi",country:"Vietnam",flag:"🇻🇳",lat:21.0285,lon:105.8542,numbeo:"Hanoi"},
+  {city:"Kuala Lumpur",country:"Malaysia",flag:"🇲🇾",lat:3.1390,lon:101.6869,numbeo:"Kuala-Lumpur"},
+  // Eastern Europe / Balkans
+  {city:"Tallinn",country:"Estonia",flag:"🇪🇪",lat:59.4370,lon:24.7536,numbeo:"Tallinn"},
+  {city:"Riga",country:"Latvia",flag:"🇱🇻",lat:56.9460,lon:24.1059,numbeo:"Riga"},
+  {city:"Vilnius",country:"Lithuania",flag:"🇱🇹",lat:54.6872,lon:25.2797,numbeo:"Vilnius"},
+  {city:"Sofia",country:"Bulgaria",flag:"🇧🇬",lat:42.6977,lon:23.3219,numbeo:"Sofia"},
+  {city:"Belgrade",country:"Serbia",flag:"🇷🇸",lat:44.7866,lon:20.4489,numbeo:"Belgrade"},
+  // Middle East / Other
+  {city:"Istanbul",country:"Turkey",flag:"🇹🇷",lat:41.0082,lon:28.9784,numbeo:"Istanbul"},
+  {city:"Tbilisi",country:"Georgia",flag:"🇬🇪",lat:41.6938,lon:44.8015,numbeo:"Tbilisi"},
+  {city:"Cape Town",country:"South Africa",flag:"🇿🇦",lat:-33.9249,lon:18.4241,numbeo:"Cape-Town"},
+  // Americas
+  {city:"Medellín",country:"Colombia",flag:"🇨🇴",lat:6.2442,lon:-75.5812,numbeo:"Medellin"},
+  {city:"Mexico City",country:"Mexico",flag:"🇲🇽",lat:19.4326,lon:-99.1332,numbeo:"Mexico-City"},
+  // Oceania
+  {city:"Auckland",country:"New Zealand",flag:"🇳🇿",lat:-36.8509,lon:174.7645,numbeo:"Auckland"},
 ];
 
 const ALL_PASSPORTS=[
@@ -431,6 +502,10 @@ const EF_EPI={
   "Norway":655,"Finland":648,"Czech Republic":573,"Poland":567,"Hungary":549,
   "Romania":548,"Canada":700,"Australia":700,"Singapore":700,"Japan":492,
   "UAE":516,"Cyprus":607,"Ireland":700,
+  "Thailand":486,"Indonesia":436,"Vietnam":469,"Malaysia":500,
+  "Estonia":591,"Latvia":553,"Lithuania":556,"Bulgaria":447,"Serbia":436,
+  "Turkey":472,"Georgia":430,"South Africa":432,"Colombia":427,"Mexico":432,
+  "New Zealand":700,
 };
 const LOCAL_LANG={
   "Israel":"Hebrew","United Kingdom":"English","Germany":"German","Netherlands":"Dutch",
@@ -440,86 +515,181 @@ const LOCAL_LANG={
   "Finland":"Finnish","Czech Republic":"Czech","Poland":"Polish","Hungary":"Hungarian",
   "Romania":"Romanian","Canada":"English","Australia":"English","Singapore":"English",
   "Japan":"Japanese","UAE":"Arabic","Cyprus":"Greek","Ireland":"English",
+  "Thailand":"Thai","Indonesia":"Indonesian","Vietnam":"Vietnamese","Malaysia":"Malay",
+  "Estonia":"Estonian","Latvia":"Latvian","Lithuania":"Lithuanian","Bulgaria":"Bulgarian",
+  "Serbia":"Serbian","Turkey":"Turkish","Georgia":"Georgian",
+  "South Africa":"English","Colombia":"Spanish","Mexico":"Spanish","New Zealand":"English",
 };
 
 // Static city data (sourced)
 const CITY_STATIC={
-  "Tel Aviv":{carFreePct:28,noWar:0,bureau:10,travelConn:6,travelCost:6,beautyGR:73.6,internetMbps:145,socialScore:7.5,staticSunH:3300},
-  "Jerusalem":{carFreePct:22,noWar:0,bureau:10,travelConn:5,travelCost:6,beautyGR:72,internetMbps:145,socialScore:5,staticSunH:3200},
-  "Haifa":{carFreePct:25,noWar:0,bureau:9,travelConn:5,travelCost:6,beautyGR:70,internetMbps:140,socialScore:5,staticSunH:2900},
-  "London":{carFreePct:63,noWar:10,bureau:10,travelConn:9,travelCost:8,beautyGR:72,internetMbps:121,socialScore:9,staticSunH:1630},
-  "Manchester":{carFreePct:55,noWar:10,bureau:10,travelConn:7,travelCost:7,beautyGR:68,internetMbps:115,socialScore:7,staticSunH:1500},
-  "Edinburgh":{carFreePct:60,noWar:10,bureau:10,travelConn:7,travelCost:7,beautyGR:76,internetMbps:115,socialScore:7,staticSunH:1400},
-  "Birmingham":{carFreePct:52,noWar:10,bureau:10,travelConn:7,travelCost:7,beautyGR:67,internetMbps:115,socialScore:6.5,staticSunH:1450},
-  "Bristol":{carFreePct:56,noWar:10,bureau:10,travelConn:6,travelCost:7,beautyGR:70,internetMbps:115,socialScore:6.5,staticSunH:1500},
-  "Berlin":{carFreePct:70,noWar:10,bureau:2,travelConn:10,travelCost:9,beautyGR:71.3,internetMbps:105,socialScore:8.5,staticSunH:1870},
-  "Munich":{carFreePct:65,noWar:10,bureau:3,travelConn:9,travelCost:8,beautyGR:73,internetMbps:110,socialScore:7.5,staticSunH:1800},
-  "Hamburg":{carFreePct:63,noWar:10,bureau:3,travelConn:8,travelCost:8,beautyGR:69,internetMbps:108,socialScore:7.5,staticSunH:1700},
-  "Frankfurt":{carFreePct:60,noWar:10,bureau:3,travelConn:10,travelCost:8,beautyGR:68,internetMbps:110,socialScore:7,staticSunH:1740},
-  "Cologne":{carFreePct:62,noWar:10,bureau:3,travelConn:8,travelCost:8,beautyGR:70,internetMbps:108,socialScore:7,staticSunH:1700},
-  "Stuttgart":{carFreePct:58,noWar:10,bureau:3,travelConn:7,travelCost:7,beautyGR:68,internetMbps:108,socialScore:6.5,staticSunH:1780},
-  "Düsseldorf":{carFreePct:60,noWar:10,bureau:3,travelConn:9,travelCost:8,beautyGR:68,internetMbps:108,socialScore:7,staticSunH:1680},
-  "Amsterdam":{carFreePct:68,noWar:10,bureau:5,travelConn:10,travelCost:9,beautyGR:71.7,internetMbps:175,socialScore:8,staticSunH:1720},
-  "Rotterdam":{carFreePct:65,noWar:10,bureau:5,travelConn:8,travelCost:8,beautyGR:68,internetMbps:170,socialScore:7,staticSunH:1680},
-  "The Hague":{carFreePct:66,noWar:10,bureau:5,travelConn:7,travelCost:8,beautyGR:69,internetMbps:170,socialScore:7,staticSunH:1680},
-  "Utrecht":{carFreePct:70,noWar:10,bureau:5,travelConn:8,travelCost:8,beautyGR:70,internetMbps:168,socialScore:7,staticSunH:1680},
-  "Athens":{carFreePct:38,noWar:10,bureau:3,travelConn:8,travelCost:8,beautyGR:77.5,internetMbps:70,socialScore:6,staticSunH:2870},
-  "Thessaloniki":{carFreePct:32,noWar:10,bureau:3,travelConn:6,travelCost:7,beautyGR:72,internetMbps:65,socialScore:5.5,staticSunH:2650},
-  "New York":{carFreePct:55,noWar:10,bureau:5,travelConn:5,travelCost:3,beautyGR:77.7,internetMbps:200,socialScore:9.5,staticSunH:2535},
-  "San Francisco":{carFreePct:52,noWar:10,bureau:5,travelConn:6,travelCost:4,beautyGR:74,internetMbps:210,socialScore:9,staticSunH:2550},
-  "Los Angeles":{carFreePct:35,noWar:10,bureau:5,travelConn:6,travelCost:4,beautyGR:72,internetMbps:200,socialScore:8.5,staticSunH:3250},
-  "Miami":{carFreePct:30,noWar:10,bureau:5,travelConn:7,travelCost:4,beautyGR:70,internetMbps:200,socialScore:8,staticSunH:3150},
-  "Chicago":{carFreePct:55,noWar:10,bureau:5,travelConn:7,travelCost:4,beautyGR:73,internetMbps:200,socialScore:8.5,staticSunH:2520},
-  "Austin":{carFreePct:30,noWar:10,bureau:5,travelConn:6,travelCost:4,beautyGR:68,internetMbps:210,socialScore:8,staticSunH:2850},
-  "Seattle":{carFreePct:55,noWar:10,bureau:5,travelConn:7,travelCost:4,beautyGR:70,internetMbps:210,socialScore:8.5,staticSunH:2170},
-  "Boston":{carFreePct:58,noWar:10,bureau:5,travelConn:7,travelCost:4,beautyGR:71,internetMbps:200,socialScore:8.5,staticSunH:2630},
-  "Barcelona":{carFreePct:60,noWar:10,bureau:4,travelConn:9,travelCost:8,beautyGR:75,internetMbps:130,socialScore:8.5,staticSunH:2524},
-  "Madrid":{carFreePct:62,noWar:10,bureau:4,travelConn:9,travelCost:8,beautyGR:73,internetMbps:130,socialScore:8,staticSunH:2769},
-  "Valencia":{carFreePct:55,noWar:10,bureau:4,travelConn:7,travelCost:8,beautyGR:71,internetMbps:128,socialScore:7,staticSunH:2823},
-  "Seville":{carFreePct:50,noWar:10,bureau:4,travelConn:6,travelCost:8,beautyGR:73,internetMbps:126,socialScore:6.5,staticSunH:2911},
-  "Malaga":{carFreePct:45,noWar:10,bureau:4,travelConn:7,travelCost:8,beautyGR:70,internetMbps:124,socialScore:7,staticSunH:2816},
-  "Paris":{carFreePct:70,noWar:10,bureau:4,travelConn:10,travelCost:7,beautyGR:80,internetMbps:145,socialScore:8.5,staticSunH:1630},
-  "Lyon":{carFreePct:62,noWar:10,bureau:4,travelConn:8,travelCost:7,beautyGR:74,internetMbps:140,socialScore:7,staticSunH:1970},
-  "Marseille":{carFreePct:55,noWar:10,bureau:4,travelConn:7,travelCost:7,beautyGR:68,internetMbps:138,socialScore:6.5,staticSunH:2760},
-  "Nice":{carFreePct:52,noWar:10,bureau:4,travelConn:7,travelCost:7,beautyGR:74,internetMbps:140,socialScore:7,staticSunH:2722},
-  "Bordeaux":{carFreePct:58,noWar:10,bureau:4,travelConn:7,travelCost:7,beautyGR:73,internetMbps:138,socialScore:7,staticSunH:2070},
-  "Lisbon":{carFreePct:55,noWar:10,bureau:4,travelConn:8,travelCost:8,beautyGR:73,internetMbps:140,socialScore:8,staticSunH:2812},
-  "Porto":{carFreePct:52,noWar:10,bureau:4,travelConn:7,travelCost:8,beautyGR:72,internetMbps:138,socialScore:7.5,staticSunH:2600},
-  "Milan":{carFreePct:58,noWar:10,bureau:3,travelConn:9,travelCost:7,beautyGR:73,internetMbps:100,socialScore:8,staticSunH:1900},
-  "Rome":{carFreePct:45,noWar:10,bureau:3,travelConn:9,travelCost:7,beautyGR:78,internetMbps:98,socialScore:7.5,staticSunH:2473},
-  "Florence":{carFreePct:55,noWar:10,bureau:3,travelConn:7,travelCost:7,beautyGR:80,internetMbps:96,socialScore:7,staticSunH:1853},
-  "Bologna":{carFreePct:60,noWar:10,bureau:3,travelConn:8,travelCost:7,beautyGR:74,internetMbps:97,socialScore:7,staticSunH:1869},
-  "Zurich":{carFreePct:68,noWar:10,bureau:6,travelConn:8,travelCost:6,beautyGR:72,internetMbps:160,socialScore:7.5,staticSunH:1700},
-  "Geneva":{carFreePct:65,noWar:10,bureau:6,travelConn:8,travelCost:6,beautyGR:71,internetMbps:158,socialScore:7.5,staticSunH:1800},
-  "Basel":{carFreePct:66,noWar:10,bureau:6,travelConn:7,travelCost:6,beautyGR:71,internetMbps:155,socialScore:7,staticSunH:1700},
-  "Vienna":{carFreePct:72,noWar:10,bureau:5,travelConn:9,travelCost:8,beautyGR:76,internetMbps:120,socialScore:8,staticSunH:1960},
-  "Graz":{carFreePct:60,noWar:10,bureau:5,travelConn:7,travelCost:7,beautyGR:74,internetMbps:118,socialScore:7,staticSunH:1900},
-  "Brussels":{carFreePct:65,noWar:10,bureau:4,travelConn:9,travelCost:8,beautyGR:71,internetMbps:130,socialScore:7.5,staticSunH:1550},
-  "Antwerp":{carFreePct:60,noWar:10,bureau:4,travelConn:7,travelCost:8,beautyGR:73,internetMbps:128,socialScore:7,staticSunH:1550},
-  "Stockholm":{carFreePct:68,noWar:10,bureau:6,travelConn:8,travelCost:7,beautyGR:70,internetMbps:150,socialScore:7.5,staticSunH:1821},
-  "Gothenburg":{carFreePct:62,noWar:10,bureau:6,travelConn:7,travelCost:7,beautyGR:68,internetMbps:145,socialScore:7,staticSunH:1730},
-  "Malmö":{carFreePct:65,noWar:10,bureau:6,travelConn:7,travelCost:7,beautyGR:67,internetMbps:148,socialScore:7,staticSunH:1780},
-  "Copenhagen":{carFreePct:70,noWar:10,bureau:6,travelConn:8,travelCost:6,beautyGR:71,internetMbps:152,socialScore:7.5,staticSunH:1800},
-  "Oslo":{carFreePct:65,noWar:10,bureau:6,travelConn:7,travelCost:5,beautyGR:68,internetMbps:155,socialScore:7,staticSunH:1668},
-  "Helsinki":{carFreePct:65,noWar:10,bureau:6,travelConn:7,travelCost:6,beautyGR:68,internetMbps:152,socialScore:7,staticSunH:1838},
-  "Prague":{carFreePct:60,noWar:10,bureau:5,travelConn:8,travelCost:8,beautyGR:76,internetMbps:110,socialScore:7.5,staticSunH:1668},
-  "Warsaw":{carFreePct:52,noWar:10,bureau:5,travelConn:7,travelCost:8,beautyGR:69,internetMbps:112,socialScore:7,staticSunH:1600},
-  "Krakow":{carFreePct:55,noWar:10,bureau:5,travelConn:6,travelCost:8,beautyGR:74,internetMbps:110,socialScore:7,staticSunH:1600},
-  "Budapest":{carFreePct:60,noWar:10,bureau:4,travelConn:8,travelCost:8,beautyGR:75,internetMbps:115,socialScore:7.5,staticSunH:1986},
-  "Bucharest":{carFreePct:50,noWar:10,bureau:3,travelConn:7,travelCost:8,beautyGR:68,internetMbps:130,socialScore:6.5,staticSunH:2050},
-  "Toronto":{carFreePct:55,noWar:10,bureau:7,travelConn:7,travelCost:5,beautyGR:70,internetMbps:180,socialScore:8.5,staticSunH:2066},
-  "Vancouver":{carFreePct:55,noWar:10,bureau:7,travelConn:7,travelCost:4,beautyGR:71,internetMbps:180,socialScore:8.5,staticSunH:1938},
-  "Montreal":{carFreePct:58,noWar:10,bureau:7,travelConn:7,travelCost:5,beautyGR:70,internetMbps:175,socialScore:8,staticSunH:2050},
-  "Sydney":{carFreePct:40,noWar:10,bureau:7,travelConn:7,travelCost:4,beautyGR:72,internetMbps:120,socialScore:8.5,staticSunH:2636},
-  "Melbourne":{carFreePct:42,noWar:10,bureau:7,travelConn:7,travelCost:4,beautyGR:70,internetMbps:120,socialScore:8.5,staticSunH:2350},
-  "Dubai":{carFreePct:20,noWar:10,bureau:6,travelConn:10,travelCost:7,beautyGR:70,internetMbps:80,socialScore:8,staticSunH:3509},
-  "Abu Dhabi":{carFreePct:18,noWar:10,bureau:6,travelConn:9,travelCost:7,beautyGR:70,internetMbps:78,socialScore:7.5,staticSunH:3509},
-  "Singapore":{carFreePct:72,noWar:10,bureau:8,travelConn:9,travelCost:6,beautyGR:71,internetMbps:200,socialScore:9,staticSunH:2165},
-  "Tokyo":{carFreePct:75,noWar:10,bureau:4,travelConn:7,travelCost:5,beautyGR:72,internetMbps:195,socialScore:7,staticSunH:1876},
-  "Osaka":{carFreePct:70,noWar:10,bureau:4,travelConn:7,travelCost:5,beautyGR:70,internetMbps:190,socialScore:6.5,staticSunH:1810},
-  "Nicosia":{carFreePct:20,noWar:10,bureau:4,travelConn:6,travelCost:7,beautyGR:68,internetMbps:65,socialScore:6,staticSunH:3390},
-  "Limassol":{carFreePct:22,noWar:10,bureau:4,travelConn:6,travelCost:7,beautyGR:68,internetMbps:63,socialScore:6.5,staticSunH:3390},
-  "Dublin":{carFreePct:55,noWar:10,bureau:7,travelConn:8,travelCost:7,beautyGR:69,internetMbps:125,socialScore:8,staticSunH:1450},
+  "Tel Aviv":{carFreePct:28,noWar:0,bureau:10,travelConn:6,travelCost:6,beautyGR:73.6,internetMbps:145,socialScore:7.5,staticSunH:3300,nature:5.5},
+  "Jerusalem":{carFreePct:22,noWar:0,bureau:10,travelConn:5,travelCost:6,beautyGR:72,internetMbps:145,socialScore:5,staticSunH:3200,nature:5.0},
+  "Haifa":{carFreePct:25,noWar:0,bureau:9,travelConn:5,travelCost:6,beautyGR:70,internetMbps:140,socialScore:5,staticSunH:2900,nature:6.5},
+  "London":{carFreePct:63,noWar:10,bureau:10,travelConn:9,travelCost:8,beautyGR:72,internetMbps:121,socialScore:9,staticSunH:1630,nature:5.5},
+  "Manchester":{carFreePct:55,noWar:10,bureau:10,travelConn:7,travelCost:7,beautyGR:68,internetMbps:115,socialScore:7,staticSunH:1500,nature:6.0},
+  "Edinburgh":{carFreePct:60,noWar:10,bureau:10,travelConn:7,travelCost:7,beautyGR:76,internetMbps:115,socialScore:7,staticSunH:1400,nature:8.0},
+  "Birmingham":{carFreePct:52,noWar:10,bureau:10,travelConn:7,travelCost:7,beautyGR:67,internetMbps:115,socialScore:6.5,staticSunH:1450,nature:5.5},
+  "Bristol":{carFreePct:56,noWar:10,bureau:10,travelConn:6,travelCost:7,beautyGR:70,internetMbps:115,socialScore:6.5,staticSunH:1500,nature:7.0},
+  "Berlin":{carFreePct:70,noWar:10,bureau:2,travelConn:10,travelCost:9,beautyGR:71.3,internetMbps:105,socialScore:8.5,staticSunH:1870,nature:5.0},
+  "Munich":{carFreePct:65,noWar:10,bureau:3,travelConn:9,travelCost:8,beautyGR:73,internetMbps:110,socialScore:7.5,staticSunH:1800,nature:8.0},
+  "Hamburg":{carFreePct:63,noWar:10,bureau:3,travelConn:8,travelCost:8,beautyGR:69,internetMbps:108,socialScore:7.5,staticSunH:1700,nature:6.5},
+  "Frankfurt":{carFreePct:60,noWar:10,bureau:3,travelConn:10,travelCost:8,beautyGR:68,internetMbps:110,socialScore:7,staticSunH:1740,nature:5.5},
+  "Cologne":{carFreePct:62,noWar:10,bureau:3,travelConn:8,travelCost:8,beautyGR:70,internetMbps:108,socialScore:7,staticSunH:1700,nature:6.0},
+  "Stuttgart":{carFreePct:58,noWar:10,bureau:3,travelConn:7,travelCost:7,beautyGR:68,internetMbps:108,socialScore:6.5,staticSunH:1780,nature:6.5},
+  "Düsseldorf":{carFreePct:60,noWar:10,bureau:3,travelConn:9,travelCost:8,beautyGR:68,internetMbps:108,socialScore:7,staticSunH:1680,nature:5.5},
+  "Amsterdam":{carFreePct:68,noWar:10,bureau:5,travelConn:10,travelCost:9,beautyGR:71.7,internetMbps:175,socialScore:8,staticSunH:1720,nature:5.0},
+  "Rotterdam":{carFreePct:65,noWar:10,bureau:5,travelConn:8,travelCost:8,beautyGR:68,internetMbps:170,socialScore:7,staticSunH:1680,nature:5.5},
+  "The Hague":{carFreePct:66,noWar:10,bureau:5,travelConn:7,travelCost:8,beautyGR:69,internetMbps:170,socialScore:7,staticSunH:1680,nature:6.0},
+  "Utrecht":{carFreePct:70,noWar:10,bureau:5,travelConn:8,travelCost:8,beautyGR:70,internetMbps:168,socialScore:7,staticSunH:1680,nature:6.5},
+  "Athens":{carFreePct:38,noWar:10,bureau:3,travelConn:8,travelCost:8,beautyGR:77.5,internetMbps:70,socialScore:6,staticSunH:2870,nature:6.5},
+  "Thessaloniki":{carFreePct:32,noWar:10,bureau:3,travelConn:6,travelCost:7,beautyGR:72,internetMbps:65,socialScore:5.5,staticSunH:2650,nature:6.5},
+  "New York":{carFreePct:55,noWar:10,bureau:5,travelConn:5,travelCost:3,beautyGR:77.7,internetMbps:200,socialScore:9.5,staticSunH:2535,nature:5.5},
+  "San Francisco":{carFreePct:52,noWar:10,bureau:5,travelConn:6,travelCost:4,beautyGR:74,internetMbps:210,socialScore:9,staticSunH:2550,nature:8.0},
+  "Los Angeles":{carFreePct:35,noWar:10,bureau:5,travelConn:6,travelCost:4,beautyGR:72,internetMbps:200,socialScore:8.5,staticSunH:3250,nature:7.5},
+  "Miami":{carFreePct:30,noWar:10,bureau:5,travelConn:7,travelCost:4,beautyGR:70,internetMbps:200,socialScore:8,staticSunH:3150,nature:6.5},
+  "Chicago":{carFreePct:55,noWar:10,bureau:5,travelConn:7,travelCost:4,beautyGR:73,internetMbps:200,socialScore:8.5,staticSunH:2520,nature:6.0},
+  "Austin":{carFreePct:30,noWar:10,bureau:5,travelConn:6,travelCost:4,beautyGR:68,internetMbps:210,socialScore:8,staticSunH:2850,nature:7.0},
+  "Seattle":{carFreePct:55,noWar:10,bureau:5,travelConn:7,travelCost:4,beautyGR:70,internetMbps:210,socialScore:8.5,staticSunH:2170,nature:9.0},
+  "Boston":{carFreePct:58,noWar:10,bureau:5,travelConn:7,travelCost:4,beautyGR:71,internetMbps:200,socialScore:8.5,staticSunH:2630,nature:6.5},
+  "Barcelona":{carFreePct:60,noWar:10,bureau:4,travelConn:9,travelCost:8,beautyGR:75,internetMbps:130,socialScore:8.5,staticSunH:2524,nature:7.5},
+  "Madrid":{carFreePct:62,noWar:10,bureau:4,travelConn:9,travelCost:8,beautyGR:73,internetMbps:130,socialScore:8,staticSunH:2769,nature:6.5},
+  "Valencia":{carFreePct:55,noWar:10,bureau:4,travelConn:7,travelCost:8,beautyGR:71,internetMbps:128,socialScore:7,staticSunH:2823,nature:7.5},
+  "Seville":{carFreePct:50,noWar:10,bureau:4,travelConn:6,travelCost:8,beautyGR:73,internetMbps:126,socialScore:6.5,staticSunH:2911,nature:6.5},
+  "Malaga":{carFreePct:45,noWar:10,bureau:4,travelConn:7,travelCost:8,beautyGR:70,internetMbps:124,socialScore:7,staticSunH:2816,nature:8.0},
+  "Paris":{carFreePct:70,noWar:10,bureau:4,travelConn:10,travelCost:7,beautyGR:80,internetMbps:145,socialScore:8.5,staticSunH:1630,nature:5.5},
+  "Lyon":{carFreePct:62,noWar:10,bureau:4,travelConn:8,travelCost:7,beautyGR:74,internetMbps:140,socialScore:7,staticSunH:1970,nature:7.5},
+  "Marseille":{carFreePct:55,noWar:10,bureau:4,travelConn:7,travelCost:7,beautyGR:68,internetMbps:138,socialScore:6.5,staticSunH:2760,nature:8.0},
+  "Nice":{carFreePct:52,noWar:10,bureau:4,travelConn:7,travelCost:7,beautyGR:74,internetMbps:140,socialScore:7,staticSunH:2722,nature:8.5},
+  "Bordeaux":{carFreePct:58,noWar:10,bureau:4,travelConn:7,travelCost:7,beautyGR:73,internetMbps:138,socialScore:7,staticSunH:2070,nature:7.0},
+  "Lisbon":{carFreePct:55,noWar:10,bureau:4,travelConn:8,travelCost:8,beautyGR:73,internetMbps:140,socialScore:8,staticSunH:2812,nature:7.0},
+  "Porto":{carFreePct:52,noWar:10,bureau:4,travelConn:7,travelCost:8,beautyGR:72,internetMbps:138,socialScore:7.5,staticSunH:2600,nature:7.0},
+  "Milan":{carFreePct:58,noWar:10,bureau:3,travelConn:9,travelCost:7,beautyGR:73,internetMbps:100,socialScore:8,staticSunH:1900,nature:6.5},
+  "Rome":{carFreePct:45,noWar:10,bureau:3,travelConn:9,travelCost:7,beautyGR:78,internetMbps:98,socialScore:7.5,staticSunH:2473,nature:6.5},
+  "Florence":{carFreePct:55,noWar:10,bureau:3,travelConn:7,travelCost:7,beautyGR:80,internetMbps:96,socialScore:7,staticSunH:1853,nature:7.5},
+  "Bologna":{carFreePct:60,noWar:10,bureau:3,travelConn:8,travelCost:7,beautyGR:74,internetMbps:97,socialScore:7,staticSunH:1869,nature:7.0},
+  "Zurich":{carFreePct:68,noWar:10,bureau:6,travelConn:8,travelCost:6,beautyGR:72,internetMbps:160,socialScore:7.5,staticSunH:1700,nature:8.5},
+  "Geneva":{carFreePct:65,noWar:10,bureau:6,travelConn:8,travelCost:6,beautyGR:71,internetMbps:158,socialScore:7.5,staticSunH:1800,nature:8.5},
+  "Basel":{carFreePct:66,noWar:10,bureau:6,travelConn:7,travelCost:6,beautyGR:71,internetMbps:155,socialScore:7,staticSunH:1700,nature:8.0},
+  "Vienna":{carFreePct:72,noWar:10,bureau:5,travelConn:9,travelCost:8,beautyGR:76,internetMbps:120,socialScore:8,staticSunH:1960,nature:7.5},
+  "Graz":{carFreePct:60,noWar:10,bureau:5,travelConn:7,travelCost:7,beautyGR:74,internetMbps:118,socialScore:7,staticSunH:1900,nature:8.5},
+  "Brussels":{carFreePct:65,noWar:10,bureau:4,travelConn:9,travelCost:8,beautyGR:71,internetMbps:130,socialScore:7.5,staticSunH:1550,nature:5.5},
+  "Antwerp":{carFreePct:60,noWar:10,bureau:4,travelConn:7,travelCost:8,beautyGR:73,internetMbps:128,socialScore:7,staticSunH:1550,nature:6.0},
+  "Stockholm":{carFreePct:68,noWar:10,bureau:6,travelConn:8,travelCost:7,beautyGR:70,internetMbps:150,socialScore:7.5,staticSunH:1821,nature:8.5},
+  "Gothenburg":{carFreePct:62,noWar:10,bureau:6,travelConn:7,travelCost:7,beautyGR:68,internetMbps:145,socialScore:7,staticSunH:1730,nature:8.0},
+  "Malmö":{carFreePct:65,noWar:10,bureau:6,travelConn:7,travelCost:7,beautyGR:67,internetMbps:148,socialScore:7,staticSunH:1780,nature:7.0},
+  "Copenhagen":{carFreePct:70,noWar:10,bureau:6,travelConn:8,travelCost:6,beautyGR:71,internetMbps:152,socialScore:7.5,staticSunH:1800,nature:7.5},
+  "Oslo":{carFreePct:65,noWar:10,bureau:6,travelConn:7,travelCost:5,beautyGR:68,internetMbps:155,socialScore:7,staticSunH:1668,nature:9.0},
+  "Helsinki":{carFreePct:65,noWar:10,bureau:6,travelConn:7,travelCost:6,beautyGR:68,internetMbps:152,socialScore:7,staticSunH:1838,nature:8.5},
+  "Prague":{carFreePct:60,noWar:10,bureau:5,travelConn:8,travelCost:8,beautyGR:76,internetMbps:110,socialScore:7.5,staticSunH:1668,nature:6.5},
+  "Warsaw":{carFreePct:52,noWar:10,bureau:5,travelConn:7,travelCost:8,beautyGR:69,internetMbps:112,socialScore:7,staticSunH:1600,nature:5.5},
+  "Krakow":{carFreePct:55,noWar:10,bureau:5,travelConn:6,travelCost:8,beautyGR:74,internetMbps:110,socialScore:7,staticSunH:1600,nature:7.0},
+  "Budapest":{carFreePct:60,noWar:10,bureau:4,travelConn:8,travelCost:8,beautyGR:75,internetMbps:115,socialScore:7.5,staticSunH:1986,nature:6.5},
+  "Bucharest":{carFreePct:50,noWar:10,bureau:3,travelConn:7,travelCost:8,beautyGR:68,internetMbps:130,socialScore:6.5,staticSunH:2050,nature:5.5},
+  "Toronto":{carFreePct:55,noWar:10,bureau:7,travelConn:7,travelCost:5,beautyGR:70,internetMbps:180,socialScore:8.5,staticSunH:2066,nature:7.0},
+  "Vancouver":{carFreePct:55,noWar:10,bureau:7,travelConn:7,travelCost:4,beautyGR:71,internetMbps:180,socialScore:8.5,staticSunH:1938,nature:9.5},
+  "Montreal":{carFreePct:58,noWar:10,bureau:7,travelConn:7,travelCost:5,beautyGR:70,internetMbps:175,socialScore:8,staticSunH:2050,nature:7.5},
+  "Sydney":{carFreePct:40,noWar:10,bureau:7,travelConn:7,travelCost:4,beautyGR:72,internetMbps:120,socialScore:8.5,staticSunH:2636,nature:8.5},
+  "Melbourne":{carFreePct:42,noWar:10,bureau:7,travelConn:7,travelCost:4,beautyGR:70,internetMbps:120,socialScore:8.5,staticSunH:2350,nature:8.0},
+  "Dubai":{carFreePct:20,noWar:10,bureau:6,travelConn:10,travelCost:7,beautyGR:70,internetMbps:80,socialScore:8,staticSunH:3509,nature:4.0},
+  "Abu Dhabi":{carFreePct:18,noWar:10,bureau:6,travelConn:9,travelCost:7,beautyGR:70,internetMbps:78,socialScore:7.5,staticSunH:3509,nature:4.0},
+  "Singapore":{carFreePct:72,noWar:10,bureau:8,travelConn:9,travelCost:6,beautyGR:71,internetMbps:200,socialScore:9,staticSunH:2165,nature:5.5},
+  "Tokyo":{carFreePct:75,noWar:10,bureau:4,travelConn:7,travelCost:5,beautyGR:72,internetMbps:195,socialScore:7,staticSunH:1876,nature:7.0},
+  "Osaka":{carFreePct:70,noWar:10,bureau:4,travelConn:7,travelCost:5,beautyGR:70,internetMbps:190,socialScore:6.5,staticSunH:1810,nature:7.0},
+  "Nicosia":{carFreePct:20,noWar:10,bureau:4,travelConn:6,travelCost:7,beautyGR:68,internetMbps:65,socialScore:6,staticSunH:3390,nature:6.0},
+  "Limassol":{carFreePct:22,noWar:10,bureau:4,travelConn:6,travelCost:7,beautyGR:68,internetMbps:63,socialScore:6.5,staticSunH:3390,nature:7.0},
+  "Dublin":{carFreePct:55,noWar:10,bureau:7,travelConn:8,travelCost:7,beautyGR:69,internetMbps:125,socialScore:8,staticSunH:1450,nature:7.5},
+  // Southeast Asia
+  "Bangkok":{carFreePct:25,noWar:10,bureau:5,travelConn:9,travelCost:9,beautyGR:68,internetMbps:95,socialScore:8.5,staticSunH:2890,nature:5.5},
+  "Chiang Mai":{carFreePct:20,noWar:10,bureau:5,travelConn:6,travelCost:9,beautyGR:70,internetMbps:80,socialScore:8.0,staticSunH:2900,nature:8.0},
+  "Phuket":{carFreePct:15,noWar:10,bureau:5,travelConn:6,travelCost:9,beautyGR:70,internetMbps:75,socialScore:7.5,staticSunH:2800,nature:9.0},
+  "Bali":{carFreePct:10,noWar:10,bureau:4,travelConn:6,travelCost:9,beautyGR:72,internetMbps:60,socialScore:8.5,staticSunH:2900,nature:9.5},
+  "Ho Chi Minh City":{carFreePct:15,noWar:10,bureau:4,travelConn:7,travelCost:10,beautyGR:65,internetMbps:72,socialScore:7.5,staticSunH:2700,nature:4.5},
+  "Hanoi":{carFreePct:15,noWar:10,bureau:4,travelConn:7,travelCost:10,beautyGR:67,internetMbps:70,socialScore:7.0,staticSunH:1670,nature:5.0},
+  "Kuala Lumpur":{carFreePct:20,noWar:10,bureau:6,travelConn:9,travelCost:9,beautyGR:66,internetMbps:70,socialScore:8.0,staticSunH:2600,nature:5.5},
+  // Eastern Europe
+  "Tallinn":{carFreePct:55,noWar:10,bureau:7,travelConn:7,travelCost:7,beautyGR:74,internetMbps:120,socialScore:7.0,staticSunH:1800,nature:7.5},
+  "Riga":{carFreePct:52,noWar:10,bureau:6,travelConn:7,travelCost:8,beautyGR:73,internetMbps:115,socialScore:6.5,staticSunH:1780,nature:6.5},
+  "Vilnius":{carFreePct:50,noWar:10,bureau:6,travelConn:7,travelCost:8,beautyGR:74,internetMbps:118,socialScore:6.5,staticSunH:1800,nature:7.0},
+  "Sofia":{carFreePct:45,noWar:10,bureau:4,travelConn:7,travelCost:9,beautyGR:66,internetMbps:130,socialScore:6.0,staticSunH:2100,nature:6.5},
+  "Belgrade":{carFreePct:48,noWar:10,bureau:4,travelConn:7,travelCost:9,beautyGR:68,internetMbps:110,socialScore:7.0,staticSunH:2070,nature:6.0},
+  "Istanbul":{carFreePct:40,noWar:10,bureau:4,travelConn:10,travelCost:8,beautyGR:74,internetMbps:55,socialScore:8.0,staticSunH:2520,nature:6.5},
+  "Tbilisi":{carFreePct:30,noWar:10,bureau:5,travelConn:6,travelCost:9,beautyGR:71,internetMbps:50,socialScore:7.5,staticSunH:2100,nature:7.5},
+  "Cape Town":{carFreePct:25,noWar:10,bureau:5,travelConn:6,travelCost:7,beautyGR:72,internetMbps:40,socialScore:7.5,staticSunH:2984,nature:9.5},
+  "Medellín":{carFreePct:35,noWar:7,bureau:4,travelConn:6,travelCost:8,beautyGR:67,internetMbps:45,socialScore:8.0,staticSunH:2800,nature:8.0},
+  "Mexico City":{carFreePct:50,noWar:7,bureau:4,travelConn:8,travelCost:7,beautyGR:68,internetMbps:50,socialScore:8.0,staticSunH:2550,nature:5.5},
+  "Auckland":{carFreePct:40,noWar:10,bureau:7,travelConn:6,travelCost:3,beautyGR:70,internetMbps:100,socialScore:8.0,staticSunH:2060,nature:9.0},
+};
+
+// ── Golden Visa thresholds (€, 2025/2026) ────────────────────
+// Source: IMI Daily 2026, getgoldenvisa.com, forthcapital.com
+// null = no program or closed
+const GOLDEN_VISA={
+  "Israel":       {threshold:null, note:"Law of Return for eligible Jewish applicants — not investment-based"},
+  "United Kingdom":{threshold:null, note:"Golden visa abolished April 2022"},
+  "Germany":      {threshold:null, note:"No golden visa program"},
+  "Netherlands":  {threshold:null, note:"No golden visa program"},
+  "Greece":       {threshold:250000, note:"€250k heritage conversion / €400k rural / €800k Athens+Thessaloniki (2024 tiers)"},
+  "United States":{threshold:800000, note:"EB-5 investor visa: $800k (targeted employment area) or $1.05M"},
+  "Spain":        {threshold:null, note:"Golden visa closed April 2025"},
+  "France":       {threshold:null, note:"No golden visa program"},
+  "Portugal":     {threshold:250000, note:"€250k cultural donation or €500k qualifying fund (no real estate since 2023)"},
+  "Italy":        {threshold:250000, note:"€250k startup / €500k company / €1M philanthropy / €2M bonds"},
+  "Switzerland":  {threshold:null, note:"No golden visa; lump-sum taxation for HNW individuals instead"},
+  "Austria":      {threshold:null, note:"No formal golden visa program"},
+  "Belgium":      {threshold:null, note:"No golden visa program"},
+  "Sweden":       {threshold:null, note:"No golden visa program"},
+  "Denmark":      {threshold:null, note:"No golden visa program"},
+  "Norway":       {threshold:null, note:"No golden visa program"},
+  "Finland":      {threshold:null, note:"No golden visa program"},
+  "Czech Republic":{threshold:null, note:"No golden visa program"},
+  "Poland":       {threshold:null, note:"No golden visa program"},
+  "Hungary":      {threshold:250000, note:"€250k real estate fund or €1M university donation. 10-yr permit. Launched July 2024"},
+  "Romania":      {threshold:null, note:"Program cancelled 2025"},
+  "Canada":       {threshold:800000, note:"Start-Up Visa or Investor streams (provincial)"},
+  "Australia":    {threshold:1500000, note:"Business Innovation visa: AUD 1.5M+ investment"},
+  "UAE":          {threshold:272000, note:"AED 2M property (~€500k) or business investment. 10-yr golden visa"},
+  "Singapore":    {threshold:2500000, note:"Global Investor Programme: SGD 2.5M+ investment"},
+  "Japan":        {threshold:null, note:"No golden visa; business manager visa requires ¥5M investment"},
+  "Cyprus":       {threshold:300000, note:"€300k real estate investment. 2yr renew. Process 2-3 months"},
+  "Ireland":      {threshold:400000, note:"Immigrant Investor Programme: €400k+ qualifying investment"},
+};
+
+// ── PISA 2022 scores by country ──────────────────────────────
+// Source: OECD PISA 2022 (released Dec 2023)
+// Normalized: 420→0, 560→10
+const PISA_SCORE={
+  "Israel":466,"United Kingdom":494,"Germany":475,"Netherlands":493,
+  "Greece":439,"United States":478,"Spain":481,"France":474,"Portugal":472,
+  "Italy":476,"Switzerland":508,"Austria":487,"Belgium":489,"Sweden":482,
+  "Denmark":489,"Norway":476,"Finland":495,"Czech Republic":489,
+  "Poland":503,"Hungary":489,"Romania":428,"Canada":506,"Australia":494,
+  "UAE":425,"Singapore":560,"Japan":520,"Cyprus":449,"Ireland":504,
+  "Thailand":425,"Indonesia":366,"Vietnam":469,"Malaysia":440,
+  "Estonia":516,"Latvia":483,"Lithuania":475,"Bulgaria":440,"Serbia":440,
+  "Turkey":453,"Georgia":400,"South Africa":300,"Colombia":391,"Mexico":395,
+  "New Zealand":494,"New Zealand":494,
+};
+const scorePISA=s=>clamp(((s||470)-420)/(560-420)*10);
+
+// ── Profession demand by country (EURES/OECD 2024) ──────────
+// 10 = critical shortage (easy to find work), 1 = surplus (hard to find work)
+// Source: EURES 2024 Labour Shortages report + OECD Health Workforce data
+const PROFESSION_DEMAND={
+  "Software Engineer / Tech":    {"Israel":10,"United Kingdom":9,"Germany":9,"Netherlands":9,"Greece":6,"United States":9,"Spain":7,"France":8,"Portugal":7,"Switzerland":9,"Austria":8,"Sweden":9,"Denmark":9,"Norway":8,"Finland":8,"Belgium":8,"Czech Republic":8,"Poland":8,"Canada":9,"Australia":9,"Singapore":9,"Japan":7,"UAE":8,"Cyprus":6,"Ireland":9},
+  "Doctor / Physician":          {"Israel":7,"United Kingdom":9,"Germany":9,"Netherlands":8,"Greece":5,"United States":8,"Spain":7,"France":8,"Portugal":7,"Switzerland":8,"Austria":8,"Sweden":9,"Denmark":9,"Norway":9,"Finland":8,"Belgium":7,"Czech Republic":7,"Poland":7,"Canada":8,"Australia":9,"Singapore":7,"Japan":6,"UAE":7,"Cyprus":6,"Ireland":9},
+  "Nurse":                       {"Israel":8,"United Kingdom":10,"Germany":10,"Netherlands":9,"Greece":4,"United States":9,"Spain":7,"France":8,"Portugal":7,"Switzerland":9,"Austria":9,"Sweden":10,"Denmark":9,"Norway":9,"Finland":8,"Belgium":8,"Czech Republic":8,"Poland":8,"Canada":9,"Australia":10,"Singapore":8,"Japan":7,"UAE":7,"Cyprus":6,"Ireland":9},
+  "Architect / Urban Planner":   {"Israel":6,"United Kingdom":7,"Germany":8,"Netherlands":7,"Greece":3,"United States":6,"Spain":5,"France":6,"Portugal":5,"Switzerland":7,"Austria":7,"Sweden":7,"Denmark":7,"Norway":7,"Finland":6,"Belgium":6,"Czech Republic":6,"Poland":6,"Canada":7,"Australia":7,"Singapore":7,"Japan":6,"UAE":7,"Cyprus":5,"Ireland":7},
+  "Finance / Accounting":        {"Israel":7,"United Kingdom":8,"Germany":7,"Netherlands":8,"Greece":5,"United States":8,"Spain":6,"France":7,"Portugal":6,"Switzerland":9,"Austria":7,"Sweden":7,"Denmark":7,"Norway":7,"Finland":6,"Belgium":7,"Czech Republic":6,"Poland":7,"Canada":8,"Australia":7,"Singapore":9,"Japan":6,"UAE":8,"Cyprus":6,"Ireland":8},
+  "Teacher / Education":         {"Israel":7,"United Kingdom":9,"Germany":10,"Netherlands":9,"Greece":4,"United States":8,"Spain":6,"France":7,"Portugal":6,"Switzerland":8,"Austria":8,"Sweden":9,"Denmark":8,"Norway":8,"Finland":7,"Belgium":7,"Czech Republic":8,"Poland":7,"Canada":8,"Australia":8,"Singapore":7,"Japan":5,"UAE":7,"Cyprus":5,"Ireland":8},
+  "Software / Tech (non-eng.)":  {"Israel":9,"United Kingdom":8,"Germany":8,"Netherlands":8,"Greece":5,"United States":8,"Spain":7,"France":7,"Portugal":7,"Switzerland":8,"Austria":7,"Sweden":8,"Denmark":8,"Norway":7,"Finland":7,"Belgium":7,"Czech Republic":7,"Poland":7,"Canada":8,"Australia":8,"Singapore":8,"Japan":6,"UAE":7,"Cyprus":5,"Ireland":8},
+  "Construction / Engineering":  {"Israel":7,"United Kingdom":9,"Germany":9,"Netherlands":9,"Greece":5,"United States":8,"Spain":7,"France":8,"Portugal":7,"Switzerland":9,"Austria":9,"Sweden":9,"Denmark":9,"Norway":9,"Finland":8,"Belgium":8,"Czech Republic":8,"Poland":8,"Canada":9,"Australia":9,"Singapore":8,"Japan":7,"UAE":8,"Cyprus":6,"Ireland":9},
+  "Creative / Design / Media":   {"Israel":6,"United Kingdom":7,"Germany":7,"Netherlands":8,"Greece":4,"United States":7,"Spain":6,"France":7,"Portugal":6,"Switzerland":7,"Austria":6,"Sweden":7,"Denmark":7,"Norway":6,"Finland":6,"Belgium":6,"Czech Republic":5,"Poland":5,"Canada":7,"Australia":6,"Singapore":7,"Japan":7,"UAE":7,"Cyprus":5,"Ireland":7},
+  "Lawyer / Legal":              {"Israel":5,"United Kingdom":6,"Germany":5,"Netherlands":5,"Greece":3,"United States":5,"Spain":4,"France":5,"Portugal":4,"Switzerland":6,"Austria":5,"Sweden":5,"Denmark":5,"Norway":5,"Finland":5,"Belgium":5,"Czech Republic":5,"Poland":5,"Canada":6,"Australia":6,"Singapore":7,"Japan":4,"UAE":6,"Cyprus":5,"Ireland":6},
+  "Hospitality / Tourism":       {"Israel":7,"United Kingdom":8,"Germany":8,"Netherlands":8,"Greece":9,"United States":7,"Spain":9,"France":8,"Portugal":9,"Switzerland":7,"Austria":8,"Sweden":6,"Denmark":6,"Norway":6,"Finland":6,"Belgium":7,"Czech Republic":7,"Poland":7,"Canada":7,"Australia":7,"Singapore":7,"Japan":8,"UAE":9,"Cyprus":9,"Ireland":7},
+  "Healthcare (general)":        {"Israel":7,"United Kingdom":9,"Germany":9,"Netherlands":8,"Greece":5,"United States":8,"Spain":7,"France":8,"Portugal":7,"Switzerland":8,"Austria":8,"Sweden":9,"Denmark":9,"Norway":9,"Finland":8,"Belgium":7,"Czech Republic":7,"Poland":7,"Canada":8,"Australia":9,"Singapore":7,"Japan":6,"UAE":7,"Cyprus":6,"Ireland":9},
+  "Academic / Research":         {"Israel":8,"United Kingdom":8,"Germany":8,"Netherlands":8,"Greece":4,"United States":8,"Spain":6,"France":7,"Portugal":6,"Switzerland":9,"Austria":7,"Sweden":8,"Denmark":8,"Norway":7,"Finland":7,"Belgium":7,"Czech Republic":6,"Poland":6,"Canada":8,"Australia":8,"Singapore":8,"Japan":7,"UAE":5,"Cyprus":5,"Ireland":8},
+  "Other":                       {"Israel":6,"United Kingdom":7,"Germany":7,"Netherlands":7,"Greece":5,"United States":7,"Spain":6,"France":6,"Portugal":6,"Switzerland":7,"Austria":7,"Sweden":7,"Denmark":7,"Norway":7,"Finland":7,"Belgium":6,"Czech Republic":6,"Poland":6,"Canada":7,"Australia":7,"Singapore":7,"Japan":6,"UAE":6,"Cyprus":5,"Ireland":7},
 };
 const NUMBEO_FB={
   "Tel Aviv":{rentUSD:1250,safetyIdx:46.8,healthcareIdx:73.5},
@@ -598,6 +768,24 @@ const NUMBEO_FB={
   "Nicosia":{rentUSD:900,safetyIdx:68,healthcareIdx:65},
   "Limassol":{rentUSD:1000,safetyIdx:70,healthcareIdx:65},
   "Dublin":{rentUSD:2200,safetyIdx:55,healthcareIdx:72},
+  "Bangkok":{rentUSD:700,safetyIdx:55,healthcareIdx:70},
+  "Chiang Mai":{rentUSD:400,safetyIdx:65,healthcareIdx:65},
+  "Phuket":{rentUSD:600,safetyIdx:62,healthcareIdx:62},
+  "Bali":{rentUSD:450,safetyIdx:60,healthcareIdx:55},
+  "Ho Chi Minh City":{rentUSD:500,safetyIdx:58,healthcareIdx:60},
+  "Hanoi":{rentUSD:450,safetyIdx:60,healthcareIdx:60},
+  "Kuala Lumpur":{rentUSD:600,safetyIdx:58,healthcareIdx:65},
+  "Tallinn":{rentUSD:1000,safetyIdx:72,healthcareIdx:68},
+  "Riga":{rentUSD:750,safetyIdx:65,healthcareIdx:62},
+  "Vilnius":{rentUSD:800,safetyIdx:68,healthcareIdx:65},
+  "Sofia":{rentUSD:600,safetyIdx:55,healthcareIdx:55},
+  "Belgrade":{rentUSD:550,safetyIdx:55,healthcareIdx:52},
+  "Istanbul":{rentUSD:600,safetyIdx:45,healthcareIdx:62},
+  "Tbilisi":{rentUSD:450,safetyIdx:72,healthcareIdx:55},
+  "Cape Town":{rentUSD:700,safetyIdx:28,healthcareIdx:55},
+  "Medellín":{rentUSD:350,safetyIdx:32,healthcareIdx:60},
+  "Mexico City":{rentUSD:700,safetyIdx:35,healthcareIdx:62},
+  "Auckland":{rentUSD:1900,safetyIdx:62,healthcareIdx:72},
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -625,7 +813,8 @@ const scoreSunshine=rads=>{
   const h=rads.reduce((a,b)=>a+b,0)*0.6;
   return{score:clamp((h-1200)/230),raw:Math.round(h)+"h/yr"};
 };
-const scoreRent=usd=>clamp(10-(usd-500)/400);
+// locationMultiplier: 1.0=city center, 0.67=outside center, 0.45=countryside
+const scoreRent=(usd,locationMultiplier=1.0)=>clamp(10-((usd*locationMultiplier)-500)/400);
 const scoreSafety=idx=>clamp(idx/10);
 const scoreHealthcare=idx=>clamp(idx/10);
 const scoreInternet=mbps=>clamp((mbps-50)/15);
@@ -635,14 +824,94 @@ const scoreLang=(efEpi,userLangs,localLang)=>{
     (["english"].includes(l.toLowerCase())&&["English"].includes(localLang)));
   return clamp(speaks?base+3:base);
 };
-const scoreVisa=(passports,country,rights)=>{
-  let best={score:3,label:"No passport data — assumed difficult"};
+const scoreVisa=(passports,country,rights,equityEur=0,profession="Not specified")=>{
+  // Step 1: best score from passports alone
+  let best={score:3,label:"No passport data — assumed difficult",goldenVisa:null};
   for(const p of passports){
     const r=rights[p]||{};
-    const e=r[country]||r["EU"]||r["European"];
-    if(e&&e.score>best.score)best=e;
+    const entry=r[country]||r["EU"]||r["European"];
+    if(entry&&entry.score>best.score)best={...best,...entry,goldenVisa:null};
   }
+
+  // Step 2: profession fast-track boost
+  // Many countries have shortage occupation lists that simplify/accelerate visas.
+  // If your profession is in high demand (score 8+) and visa path is not already easy,
+  // some countries offer faster/lower-threshold routes.
+  if(profession&&profession!=="Not specified"&&best.score<10){
+    const demand=(PROFESSION_DEMAND[profession]||{})[country]||5;
+    if(demand>=9&&best.score<8){
+      // Critical shortage — many countries fast-track these (UK Shortage Occupation List,
+      // German Fachkräfteeinwanderungsgesetz, NL shortage register, etc.)
+      best={
+        ...best,
+        score:Math.min(best.score+2,8),
+        label:best.label+` · ✅ ${profession} on shortage list — expedited route available`,
+      };
+    } else if(demand>=7&&best.score<7){
+      best={
+        ...best,
+        score:Math.min(best.score+1,7),
+        label:best.label+` · ⚡ ${profession} in high demand — stronger application`,
+      };
+    }
+  }
+
+  // Step 3: golden visa — only when no easy path exists (score < 8)
+  if(equityEur>0&&best.score<8){
+    const gv=GOLDEN_VISA[country];
+    if(gv&&gv.threshold&&equityEur>=gv.threshold){
+      const gvScore=9;
+      if(gvScore>best.score){
+        return{
+          score:gvScore,
+          label:`Golden visa via investment (€${(gv.threshold/1000).toFixed(0)}k min). ${gv.note||""}`,
+          goldenVisa:true
+        };
+      }
+    } else if(gv&&gv.threshold&&equityEur>=gv.threshold*0.5){
+      best.label+=` · ⚡ Golden visa possible at €${(gv.threshold/1000).toFixed(0)}k (you have €${(equityEur/1000).toFixed(0)}k)`;
+    }
+  }
+
   return best;
+};
+
+// ── scoreBureau: bureaucracy ease as a function of passport + profession ───
+// Base = country bureaucracy difficulty (from CITY_STATIC)
+// Modified by:
+//   - Whether user is already a citizen in that country → full 10
+//   - Profession on shortage list → some friction removed (fast-track)
+//   - Profession requiring local licence (doctors, lawyers, architects) → more friction
+const scoreBureau=(baseScore, country, passports, profession, visaScore)=>{
+  // If already citizen (visa score 10), bureaucracy is home-country level — use base
+  if(visaScore>=10) return{score:baseScore, raw:"Citizen — home admin"};
+
+  let score=baseScore;
+  let notes=[];
+
+  // Shortage profession boost: fast-tracked admin, professional recognition supported
+  const demand=(PROFESSION_DEMAND[profession]||{})[country]||5;
+  if(profession&&profession!=="Not specified"&&demand>=9){
+    score=Math.min(score+1.5,9);
+    notes.push("shortage fast-track");
+  }
+
+  // Regulated profession penalty: doctors, lawyers, architects need licence recognition
+  // This adds real admin friction regardless of visa status
+  const REGULATED=["Doctor / Physician","Nurse","Lawyer / Legal","Architect / Urban Planner"];
+  if(REGULATED.includes(profession)){
+    score=Math.max(score-1.5,1);
+    notes.push("licence recognition required");
+  }
+
+  // Language-barrier penalty already partially captured in base score (e.g. Germany=2)
+  // but if base is already low, don't double-penalise
+
+  const raw=notes.length
+    ?notes.join(" · ")
+    :score>=8?"Straightforward":score>=5?"Moderate friction":"High friction — see notes";
+
+  return{score:clamp(score), raw};
 };
 const scoreFamily=(lat,lon,anchors)=>{
   if(!anchors.length)return{score:5,raw:"No anchors set"};
@@ -677,6 +946,38 @@ const scoreCityTotal=(scores,weights)=>{
   return mx>0?(t/mx)*100:0;
 };
 
+// ── Score: golden visa access given user's equity ──────────
+// Returns 0-10: 10 = golden visa accessible at user's equity level
+// 0 = no program or equity far below threshold
+function scoreGoldenVisa(country, equityEur){
+  const gv=GOLDEN_VISA[country];
+  if(!gv||!gv.threshold) return 0; // no program
+  if(equityEur<=0) return 0;
+  if(equityEur>=gv.threshold) return 10; // fully qualifies
+  // Partial: approaching threshold
+  return clamp((equityEur/gv.threshold)*10);
+}
+
+// ── Score: profession demand in destination country ─────────
+function scoreProfession(country, profession){
+  if(!profession||profession==="Not specified") return 5; // neutral
+  const demandMap=PROFESSION_DEMAND[profession]||PROFESSION_DEMAND["Other"]||{};
+  return clamp(demandMap[country]||5);
+}
+
+// ── Score: education quality (PISA) ────────────────────────
+// Only relevant if user has children
+function scoreEducation(country){
+  return scorePISA(PISA_SCORE[country]||470);
+}
+
+// ── Score: nature / outdoor access ────────────────────────
+// From CITY_STATIC.nature (0-10 composite)
+function scoreNature(cityName){
+  return clamp(CITY_STATIC[cityName]?.nature||5);
+}
+
+
 function buildScores(cityName,cityDb,config,liveData){
   const db=CITY_DB.find(c=>c.city===cityName)||{};
   const s=CITY_STATIC[cityName]||{};
@@ -684,10 +985,12 @@ function buildScores(cityName,cityDb,config,liveData){
   const live=liveData[cityName]||{};
   const country=db.country||"";
 
-  const airQ=live.airQ??scoreAirQuality(nb.rentUSD?11:11);
-  const tempS=live.temp??5;
-  const sunS=live.sun??clamp((s.staticSunH-1200)/230);
-  const rentS=live.rent??scoreRent(nb.rentUSD||1500);
+  const airQ=live.airQ??scoreAirQuality(11);
+  const tempScore=live.temp??5;
+  const sunScore=live.sun??clamp((s.staticSunH-1200)/230);
+  const LOCATION_MULT={"city-center":1.0,"outside-center":0.67,"countryside":0.45};
+  const locationMult=LOCATION_MULT[config.housingLocation||"city-center"];
+  const rentS=live.rent??scoreRent(nb.rentUSD||1500, locationMult);
   const safetyS=live.safety??scoreSafety(nb.safetyIdx||50);
   const healthS=live.healthcare??scoreHealthcare(nb.healthcareIdx||65);
   const carFreeS=scoreCarFree(s.carFreePct||50);
@@ -697,28 +1000,46 @@ function buildScores(cityName,cityDb,config,liveData){
   const beauty=scoreBeauty(s.beautyGR||70);
   const internet=scoreInternet(s.internetMbps||100);
   const social=clamp(s.socialScore||6);
-  const visaRes=scoreVisa(config.passports,country,PASSPORT_RIGHTS);
-  const famRes=scoreFamily(db.lat,db.lon,config.familyAnchors);
+  const visaResult=scoreVisa(config.passports,country,PASSPORT_RIGHTS,config.equityEur||0,config.profession);
+  const bureauResult=scoreBureau(s.bureau??5, country, config.passports, config.profession, visaResult.score);
+  const familyS=scoreFamily(db.lat,db.lon,config.familyAnchors);
   const proxRes=scoreProximity(db.lat,db.lon,config.proximityAnchors);
-  const efEpi=EF_EPI[country]||500;
-  const langS=scoreLang(efEpi,config.languages,LOCAL_LANG[country]);
+  const langS=scoreLang(EF_EPI[country]||500,config.languages,LOCAL_LANG[country]);
+  const profS=scoreProfession(country,config.profession);
+  const educationS=config.hasChildren?scoreEducation(country):5;
+  const natureS=scoreNature(cityName);
+
+  // Visa raw label includes golden visa note if it was the deciding factor
+  const visaRawLabel=visaResult.goldenVisa
+    ?visaResult.label
+    :visaResult.label+(config.equityEur>0&&GOLDEN_VISA[country]?.threshold&&config.equityEur<GOLDEN_VISA[country].threshold
+      ?` · ⚡ €${(config.equityEur/1000).toFixed(0)}k / €${(GOLDEN_VISA[country].threshold/1000).toFixed(0)}k for golden visa`
+      :"");
 
   return{
-    scores:{airQ,carFree:carFreeS,temp:tempS,sun:sunS,rent:rentS,safety:safetyS,
-      noWar,visa:visaRes.score,bureau,family:famRes.score,proximity:proxRes.score,
-      travel:travelS,lang:langS,beauty,healthcare:healthS,internet,social},
+    scores:{airQ,carFree:carFreeS,temp:tempScore,sun:sunScore,rent:rentS,safety:safetyS,
+      noWar,visa:visaResult.score,bureau:bureauResult.score,family:familyS.score,proximity:proxRes.score,
+      travel:travelS,lang:langS,beauty,healthcare:healthS,internet,social,
+      profession:profS,education:educationS,nature:natureS},
     raws:{
-      airQ:live.airQRaw||(nb.rentUSD?"~est":"~11 µg/m³"),
-      temp:live.tempRaw||"(static est.)",sun:live.sunRaw||(s.staticSunH+"h/yr static"),
-      rent:live.rentRaw||("~$"+nb.rentUSD+"/mo est."),
+      airQ:live.airQRaw||"~11 µg/m³ est.",
+      temp:live.tempRaw||"static est.",sun:live.sunRaw||(s.staticSunH+"h/yr"),
+      rent:live.rentRaw
+        ?live.rentRaw+(locationMult<1?" × "+locationMult+"":"")
+        :"~$"+Math.round((nb.rentUSD||1500)*locationMult)+"/mo est.",
       safety:live.safetyRaw||(nb.safetyIdx+"/100 est."),
       healthcare:live.healthcareRaw||(nb.healthcareIdx+"/100 est."),
       carFree:s.carFreePct+"%",noWar:noWar===0?"⚠️ Active conflict":"Peaceful",
-      visa:visaRes.label,bureau:bureau>=9?"Citizen":"See Metrics tab",
-      family:famRes.raw,proximity:proxRes.raw,
+      visa:visaRawLabel,bureau:bureauResult.raw,
+      family:familyS.raw,proximity:proxRes.raw,
       lang:"EF EPI "+(EF_EPI[country]||"?"),
       beauty:s.beautyGR+"% golden ratio",internet:s.internetMbps+" Mbps",
       social:s.socialScore+"/10",travel:"Conn:"+s.travelConn+" Cost:"+s.travelCost,
+      profession:config.profession&&config.profession!=="Not specified"
+        ?config.profession+" demand: "+(PROFESSION_DEMAND[config.profession]?.[country]||"?")+"/10"
+        :"Not specified",
+      education:config.hasChildren?("PISA 2022: "+(PISA_SCORE[country]||"?")):"N/A",
+      nature:(s.nature||5)+"/10",
     },
     isLive:{airQ:!!live.airQ,temp:!!live.temp,sun:!!live.sun,
       rent:!!live.rent,safety:!!live.safety,healthcare:!!live.healthcare},
@@ -758,13 +1079,13 @@ const METRIC_DEFS=[
     formula:"score = 10 if peaceful  ·  score = 0 if active conflict",
     logic:"Binary because active war is qualitatively different from a bad safety score. Affects daily life, mobility and psychology in ways no gradient captures."},
   {key:"visa",label:"Right to live & work",cat:"📋 Legal",type:"dynamic",
-    source:"Immigration law — computed from your passports",
-    formula:"Best score across your passports for each city",
-    logic:"Scored on process difficulty and certainty. Citizenship = 10. Visa-free apply in-country = 7. Employer-sponsored = 5-6. Lottery/quota = 3-4."},
-  {key:"bureau",label:"Bureaucracy ease",cat:"📋 Legal",type:"data",
-    source:"World Bank B-READY 2024 + resident experience",
-    formula:"Citizen → 10  ·  English+digital → 5  ·  Language barrier+slow → 2–3",
-    logic:"Ongoing admin friction as resident: address registration, healthcare, bank accounts, tax ID. Separate from visa difficulty."},
+    source:"Immigration law — computed from your passports + profession",
+    formula:"1. Best passport score for destination country\n2. +2 if profession on critical shortage list (demand 9+) AND score < 8\n3. +1 if profession in high demand (7-8) AND score < 7\n4. Override to 9 if golden visa qualifies AND score < 8",
+    logic:"Scored on process difficulty and certainty. Citizenship = 10. Shortage occupation fast-track routes are now modelled — nurses, doctors, teachers in Germany/UK/Netherlands get an expedited path that meaningfully raises the accessible score. Golden visa only activates when no easier path exists (score < 8). Profession boost reflects real policy: UK's Shortage Occupation List, Germany's Fachkräfteeinwanderungsgesetz (2023), NL's shortage register."},
+  {key:"bureau",label:"Bureaucracy ease",cat:"📋 Legal",type:"dynamic",
+    source:"World Bank B-READY 2024 + profession-specific adjustments",
+    formula:"base = country bureaucracy score\n+1.5 if profession on critical shortage list (streamlined admin)\n−1.5 if regulated profession (doctor/nurse/lawyer/architect — licence recognition required)",
+    logic:"Now computed from country base + your profession. Regulated professions (doctors, nurses, lawyers, architects) face extra bureaucratic friction in any destination: credential recognition, licence boards, language requirements for practice. This is real friction on top of general admin. Conversely, shortage-listed professions often get assigned case officers and faster processing in countries like Germany and the Netherlands."},
   {key:"family",label:"Family proximity",cat:"👥 Social",type:"dynamic",
     source:"Great-circle distances to your family anchors",
     formula:"weighted avg of: max(1, 10 − (km / 10000) × 9) per anchor",
@@ -797,6 +1118,18 @@ const METRIC_DEFS=[
     source:"InterNations Expat City Ranking 2024",
     formula:"composite: InterNations rank + English expat community + tech scene",
     logic:"How easy to build a social life as a newcomer. InterNations friendliness, English-speaking expat community size, startup scene."},
+  {key:"profession",label:"Job market fit",cat:"💼 Personal fit",type:"dynamic",
+    source:"EURES Labour Shortages Report 2024 · OECD Employment Outlook 2024",
+    formula:"demand score (1–10) per profession × country\n1 = surplus/very hard to find work\n10 = critical shortage/very easy",
+    logic:"Based on EURES 2024 shortage occupation lists and OECD labour market data. A high score means your profession is in shortage — making immigration easier (some shortage occupations get fast-tracked visas), salary potential higher, and integration more likely. Nurses and healthcare workers score 9-10 in most of Northern Europe. Tech/software is 9-10 in Israel, UK, Germany, Netherlands. Lawyers and creative professionals score lower everywhere."},
+  {key:"education",label:"Education quality",cat:"💼 Personal fit",type:"data",
+    source:"OECD PISA 2022 (released December 2023) — country average score",
+    formula:"score = max(0, min(10, (PISA_score − 420) / (560 − 420) × 10))\n420 → 0 · 560 (Singapore) → 10",
+    logic:"Only counts toward your score if you indicated you have children. PISA (Programme for International Student Assessment) measures 15-year-olds across reading, maths and science. It's the most comparable international measure of actual school quality. Note this is country-level — individual school choice matters enormously. Singapore tops at 560, Japan/Switzerland/Canada cluster 504-520. Israel scores 466, Greece 439."},
+  {key:"nature",label:"Nature & outdoors",cat:"💼 Personal fit",type:"data",
+    source:"Geographic analysis — coastline, mountain access, national parks, urban green space",
+    formula:"composite of: coast access (0–10), mountain access (0–10),\nnational parks within 2h (0–10), urban green space (0–10)\nequally weighted",
+    logic:"Measures how easy it is to access nature — for hiking, skiing, swimming, cycling, camping. Oslo, Vancouver, Zurich and Geneva top the list (mountains + coast or lakes + parks). Tel Aviv scores well on coast but low on mountains and green space. Berlin and Amsterdam have excellent urban parks but no dramatic nature within easy reach."},
 ];
 const CATS=[...new Set(METRIC_DEFS.map(m=>m.cat))];
 const TYPE_BADGE={live:"wt-live",dynamic:"wt-calc",data:"wt-data"};
@@ -807,6 +1140,7 @@ const DEFAULT_WEIGHTS={
   airQ:5,carFree:4,temp:7,sun:6,rent:7,safety:6,noWar:9,
   visa:8,bureau:5,family:7,proximity:6,travel:5,
   lang:5,beauty:4,healthcare:6,internet:4,social:5,
+  profession:6,education:0,nature:5,
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -1030,7 +1364,7 @@ function AnchorEditor({anchors,onChange}){
 
   return e("div",null,
     // Add form
-    e("div",{style:{display:"grid",gridTemplateColumns:"1fr auto 1.3fr",gap:8,marginBottom:6,alignItems:"start"}},
+    e("div",{className:"anchor-add-grid",style:{display:"grid",gridTemplateColumns:"1fr auto 1.3fr",gap:8,marginBottom:6,alignItems:"start"}},
       e("div",{className:"input-group"},
         e("div",{className:"input-label"},"Label"),
         e("input",{
@@ -1177,106 +1511,152 @@ async function fetchNumbeo(city){
 //  STEP COMPONENTS
 // ═══════════════════════════════════════════════════════════════
 
-// ── Step 1: Setup ────────────────────────────────────────────
-function SetupStep({setup,onChange,onFetch,fetching,pills}){
-  return e("div",{className:"setup-layout"},
-    // Left column
-    e("div",null,
-      // Current city
-      e("div",{className:"card",style:{marginBottom:14}},
-        e("h3",{style:{marginBottom:4}},"Your current city"),
-        e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",color:"var(--muted)",marginBottom:12}},
-          "Where are you living now? This is shown in results for context."),
-        e(CityAutocomplete,{
-          value:setup.currentCityInput||"",
-          onChange:v=>onChange({...setup,currentCityInput:v,currentCity:null}),
-          placeholder:"Search your current city…",
-          onSelect:c=>onChange({...setup,currentCity:c,currentCityInput:c.flag+" "+c.city+", "+c.country}),
-        }),
-        setup.currentCity&&e("div",{style:{marginTop:8,display:"flex",alignItems:"center",gap:8,fontFamily:"DM Mono,monospace",fontSize:".72rem",color:"var(--green)"}},
-          "✓ ",setup.currentCity.flag," ",setup.currentCity.city,", ",setup.currentCity.country
-        )
-      ),
-      // Cities to compare
-      e("div",{className:"card",style:{marginBottom:14}},
-        e("h3",{style:{marginBottom:4}},"Cities to compare"),
-        e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",color:"var(--muted)",marginBottom:12}},
-          "Pick 2–8 cities. Start typing to search."),
-        e(CityPickerList,{
-          cities:setup.cities,
-          onAdd:c=>onChange({...setup,cities:[...setup.cities,c]}),
-          onRemove:i=>onChange({...setup,cities:setup.cities.filter((_,j)=>j!==i)}),
-          placeholder:"Search cities…",
-          maxItems:8
-        })
-      ),
-      // Passports
-      e("div",{className:"card",style:{marginBottom:14}},
-        e("h3",{style:{marginBottom:4}},"Your passports"),
-        e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",color:"var(--muted)",marginBottom:12}},
-          "Visa scores use your best available passport per destination."),
-        e(PassportSelect,{passports:setup.passports,onChange:p=>onChange({...setup,passports:p})})
-      ),
-      // Live data fetch
-      e("div",{className:"card"},
-        e("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}},
-          e("div",null,
-            e("h3",{style:{marginBottom:3}},"Live data"),
-            e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".63rem",color:"var(--muted)"}},
-              "Pulls weather, air quality & Numbeo data for your cities.")
-          ),
-          e("button",{className:"fetch-btn",onClick:onFetch,disabled:fetching||setup.cities.length===0},
-            fetching?"⏳":"⚡"," ",fetching?"Fetching…":"Fetch Live Data")
-        ),
-        pills.length>0&&e("div",{style:{display:"flex",gap:5,flexWrap:"wrap",marginTop:10}},
-          pills.map(p=>e("div",{key:p.id,className:"pill pill-"+p.state},
-            e("div",{className:"pill-dot"+(p.state==="busy"?" blink":"")}),p.label))
-        )
-      )
-    ),
-    // Right column
-    e("div",null,
-      // Unified people & places
-      e("div",{className:"card",style:{marginBottom:14}},
-        e("h3",{style:{marginBottom:12}},"People & places"),
-        e(AnchorEditor,{
-          anchors:setup.allAnchors||[],
-          onChange:a=>{
-            onChange({
-              ...setup,
-              allAnchors:a,
-              familyAnchors:a.filter(x=>x.type==="family"),
-              proximityAnchors:a.filter(x=>x.type==="people"),
-            });
-          },
-        })
-      ),
-      // Languages + temp
-      e("div",{className:"card"},
-        e("h3",{style:{marginBottom:4}},"Languages you speak"),
-        e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",color:"var(--muted)",marginBottom:12}},
-          "Boosts language ease score (+3) when you speak the local language."),
-        e(LanguageSelect,{languages:setup.languages,onChange:l=>onChange({...setup,languages:l})}),
-        e("div",{style:{marginTop:18}},
-          e("h3",{style:{marginBottom:4}},"Temperature comfort range"),
-          e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",color:"var(--muted)",marginBottom:10}},
-            "Days inside this range are counted as comfortable."),
-          e("div",{className:"grid2"},
-            e("div",{className:"input-group"},
-              e("div",{className:"input-label"},"Min °C"),
-              e("input",{className:"input",type:"number",value:setup.tempMin,
-                onChange:ev=>onChange({...setup,tempMin:+ev.target.value})})
-            ),
-            e("div",{className:"input-group"},
-              e("div",{className:"input-label"},"Max °C"),
-              e("input",{className:"input",type:"number",value:setup.tempMax,
-                onChange:ev=>onChange({...setup,tempMax:+ev.target.value})})
-            )
-          )
-        )
-      )
-    )
+// ── EquityInput ───────────────────────────────────────────────
+// Keeps a local string draft so the user can type freely.
+// Only commits the numeric value to parent state on blur or Enter.
+function EquityInput({value,onChange}){
+  const[draft,setDraft]=useState(value>0?String(value):"");
+  const commit=()=>{
+    const n=parseFloat(draft.replace(/[^0-9.]/g,""))||0;
+    setDraft(n>0?String(n):"");
+    onChange(n);
+  };
+  // Sync if parent resets to 0
+  useEffect(()=>{if(value===0&&draft!=="")setDraft("");},[value]);
+  return e("div",{style:{display:"flex",alignItems:"center",gap:8}},
+    e("input",{
+      className:"input",
+      type:"text",
+      inputMode:"numeric",
+      value:draft,
+      placeholder:"e.g. 500000",
+      onChange:ev=>setDraft(ev.target.value),
+      onBlur:commit,
+      onKeyDown:ev=>{if(ev.key==="Enter"){ev.target.blur();}},
+      style:{flex:1},
+    }),
+    e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".7rem",color:"var(--muted)",flexShrink:0}},"USD")
   );
+}
+
+// ── Step 1: Setup screens (rendered by App based on step) ────
+function SetupStep({setup,onChange,screen}){
+
+  const CircumCard=({icon,title,desc,children})=>e("div",{
+    style:{background:"var(--surf2)",border:"1px solid var(--border)",borderRadius:"var(--r)",padding:"16px 18px",marginBottom:12}
+  },
+    e("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:3}},
+      e("span",{style:{fontSize:20}},icon),
+      e("div",{style:{fontWeight:700,fontSize:".9rem"}},title)
+    ),
+    e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".6rem",color:"var(--muted)",marginBottom:10,lineHeight:1.55}},desc),
+    children
+  );
+
+  const wrap=(children)=>e("div",{style:{padding:"20px 28px",maxWidth:680}},children);
+
+  if(screen===0) return wrap(e("div",null,
+    e(CircumCard,{icon:"📍",title:"Your current city",desc:"Where are you living right now?"},
+      e(CityAutocomplete,{
+        value:setup.currentCityInput||"",
+        onChange:v=>onChange({...setup,currentCityInput:v,currentCity:null}),
+        placeholder:"Search your current city…",
+        onSelect:c=>onChange({...setup,currentCity:c,currentCityInput:c.flag+" "+c.city+", "+c.country}),
+      }),
+      setup.currentCity&&e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".68rem",color:"var(--green)",marginTop:6}},
+        "✓ ",setup.currentCity.flag," ",setup.currentCity.city,", ",setup.currentCity.country)
+    ),
+    e(CircumCard,{icon:"🏙️",title:"Cities to compare",desc:"Pick 2–8 cities you're considering. Start typing to search from "+CITY_DB.length+"+ cities worldwide."},
+      e(CityPickerList,{
+        cities:setup.cities,
+        onAdd:c=>onChange({...setup,cities:[...setup.cities,c]}),
+        onRemove:i=>onChange({...setup,cities:setup.cities.filter((_,j)=>j!==i)}),
+        placeholder:"Search cities…",maxItems:8
+      }),
+      setup.cities.length<2&&e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".63rem",color:"var(--orange)",marginTop:6}},"Add at least 2 cities to continue")
+    ),
+    e(CircumCard,{icon:"🛂",title:"Your passports",desc:"Visa scores use your best available passport per destination. Add all you hold."},
+      e(PassportSelect,{passports:setup.passports,onChange:p=>onChange({...setup,passports:p})})
+    )
+  ));
+
+  if(screen===1) return wrap(e("div",null,
+    e(CircumCard,{icon:"🧑‍💼",title:"Your profession",
+      desc:"Affects job market demand per city. In-shortage professions make immigration easier and salaries higher. Source: EURES 2024."},
+      e("select",{className:"input",value:setup.profession||"Not specified",onChange:ev=>onChange({...setup,profession:ev.target.value}),style:{cursor:"pointer",width:"100%"}},
+        ["Not specified",...Object.keys(PROFESSION_DEMAND)].map(p=>e("option",{key:p,value:p},p))),
+      setup.profession&&setup.profession!=="Not specified"&&e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".63rem",color:"var(--accent)",marginTop:5}},"✓ "+setup.profession+" — demand scored per destination")
+    ),
+    e(CircumCard,{icon:"💰",title:"Available equity",
+      desc:"Investable capital can unlock golden visa residency — bypassing a difficult work visa. Only affects scoring when your normal visa path is hard. Leave at 0 if not applicable."},
+      e(EquityInput,{value:setup.equityUsd||0,onChange:v=>onChange({...setup,equityUsd:v})}),
+      setup.equityUsd>0&&e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".63rem",color:"var(--accent)",marginTop:5}},
+        "✓ $"+(setup.equityUsd>=1000000?(setup.equityUsd/1000000).toFixed(1)+"M":(setup.equityUsd/1000).toFixed(0)+"k")+" ≈ €"+Math.round(setup.equityUsd/1080)+"k — will check golden visa thresholds")
+    ),
+    e(CircumCard,{icon:"👶",title:"Do you have children?",
+      desc:"Activates the Education quality metric (PISA 2022 country scores)."},
+      e("div",{style:{display:"flex",gap:8}},
+        ...[["Yes — I have children",true,"var(--accent)","rgba(232,255,71,.4)","rgba(232,255,71,.1)"],
+            ["No",false,"var(--blue)","rgba(71,196,255,.4)","rgba(71,196,255,.1)"]
+        ].map(([lbl,val,col,border,bg])=>e("button",{key:String(val),
+          style:{flex:1,padding:"11px",border:"1px solid "+(setup.hasChildren===val?border:"var(--border)"),background:setup.hasChildren===val?bg:"transparent",color:setup.hasChildren===val?col:"var(--muted)",borderRadius:"var(--r)",cursor:"pointer",fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:".82rem",transition:"all .15s"},
+          onClick:()=>onChange({...setup,hasChildren:val})},lbl))
+      ),
+      setup.hasChildren&&e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".63rem",color:"var(--green)",marginTop:6}},"✓ Education quality metric active (PISA 2022)")
+    ),
+    e(CircumCard,{icon:"💬",title:"Languages you speak",
+      desc:"Boosts language ease score (+3 pts) when you speak the local language."},
+      e(LanguageSelect,{languages:setup.languages,onChange:l=>onChange({...setup,languages:l})})
+    )
+  ));
+
+  if(screen===2) return wrap(e("div",null,
+    e(CircumCard,{icon:"👥",title:"Family & friends locations",
+      desc:"Add the people and places that matter. Toggle 👨‍👩‍👧 family (affects family proximity score) vs 👤 person (friends score). Weights must total 100%. All optional."},
+      e(AnchorEditor,{
+        anchors:setup.allAnchors||[],
+        onChange:a=>onChange({...setup,allAnchors:a,familyAnchors:a.filter(x=>x.type==="family"),proximityAnchors:a.filter(x=>x.type==="people")}),
+      })
+    )
+  ));
+
+  if(screen===3) return wrap(e("div",null,
+    e(CircumCard,{icon:"🏠",title:"Where will you live within the city?",
+      desc:"Rent scores are adjusted based on this. City centre is most expensive; countryside ~55% cheaper. Sourced from Numbeo centre vs outside-centre price ratios."},
+      e("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}},
+        ...[
+          ["city-center","🏙️","City centre","1.0× rent"],
+          ["outside-center","🏘️","Outside centre","~0.67×"],
+          ["countryside","🌿","Countryside","~0.45×"],
+        ].map(([val,em,lbl,sub])=>e("button",{key:val,
+          style:{padding:"14px 8px",border:"1px solid "+(setup.housingLocation===val?"rgba(232,255,71,.4)":"var(--border)"),background:setup.housingLocation===val?"rgba(232,255,71,.1)":"transparent",color:setup.housingLocation===val?"var(--accent)":"var(--muted)",borderRadius:"var(--r)",cursor:"pointer",fontFamily:"DM Mono,monospace",fontSize:".65rem",lineHeight:1.6,transition:"all .15s",textAlign:"center"},
+          onClick:()=>onChange({...setup,housingLocation:val})},
+          e("div",{style:{fontSize:22,marginBottom:4}},em),
+          e("div",{style:{fontWeight:700}},lbl),
+          e("div",{style:{opacity:.7,fontSize:".58rem"}},sub)
+        ))
+      ),
+      setup.housingLocation&&e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".63rem",color:"var(--accent)",marginTop:8}},
+        "✓ Rent adjusted for "+(setup.housingLocation==="city-center"?"city centre":setup.housingLocation==="outside-center"?"outside centre":"countryside"))
+    ),
+    e(CircumCard,{icon:"🌡️",title:"Temperature comfort range",
+      desc:"Days within this band count as 'comfortable'. Adjust to match your preference."},
+      e("div",{style:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}},
+        e("div",null,
+          e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".6rem",color:"var(--muted)",marginBottom:5}},"MIN °C"),
+          e("input",{className:"input",type:"number",value:setup.tempMin,onChange:ev=>onChange({...setup,tempMin:+ev.target.value})})
+        ),
+        e("div",null,
+          e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".6rem",color:"var(--muted)",marginBottom:5}},"MAX °C"),
+          e("input",{className:"input",type:"number",value:setup.tempMax,onChange:ev=>onChange({...setup,tempMax:+ev.target.value})})
+        )
+      ),
+      e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".63rem",color:"var(--muted)",marginTop:6}},
+        "Comfort zone: "+setup.tempMin+"°C – "+setup.tempMax+"°C")
+    )
+  ));
+
+  return null;
 }
 
 // ── Step 2: Priorities ───────────────────────────────────────
@@ -1684,8 +2064,99 @@ function SensitivityPanel({ranked,allScoresMap,weights}){
   );
 }
 
+// ── Suggestions panel ────────────────────────────────────────
+function SuggestionsPanel({setup,config,weights,liveData,onAddCity}){
+  const alreadyIn=new Set(setup.cities.map(c=>c.city));
+
+  // Score every city in the DB that's not already in the comparison
+  const candidates=useMemo(()=>{
+    return CITY_DB
+      .filter(c=>!alreadyIn.has(c.city))
+      .map(c=>{
+        const {scores,raws,isLive}=buildScores(c.city,c,config,liveData);
+        const total=scoreCityTotal(scores,weights);
+        // Top reasons: highest (score × weight) metrics
+        const reasons=METRIC_DEFS
+          .filter(m=>(weights[m.key]||0)>0)
+          .map(m=>({m,contribution:(scores[m.key]||0)*(weights[m.key]||0)}))
+          .sort((a,b)=>b.contribution-a.contribution)
+          .slice(0,3)
+          .map(({m,contribution})=>({
+            label:m.label,
+            score:scores[m.key]||0,
+            raw:raws[m.key]||null,
+          }));
+        // Find most similar city already in list
+        let similar=null;
+        if(setup.cities.length>0){
+          const match=setup.cities.map(ec=>{
+            const {scores:es}=buildScores(ec.city,ec,config,liveData);
+            const diff=METRIC_DEFS.reduce((d,m)=>d+Math.abs((scores[m.key]||0)-(es[m.key]||0)),0);
+            return{name:ec.city,diff};
+          }).sort((a,b)=>a.diff-b.diff)[0];
+          if(match&&match.diff<25)similar=match.name;
+        }
+        return{city:c,scores,raws,total,reasons,similar};
+      })
+      .sort((a,b)=>b.total-a.total)
+      .slice(0,8);
+  },[alreadyIn.size,config,weights]);
+
+  if(setup.cities.length===0)return e("div",{className:"onboard-empty"},
+    e("div",{className:"big"},"✨"),
+    "Add cities in Step 1 first — suggestions are based on your priorities"
+  );
+
+  const COLORS=["var(--accent)","var(--blue)","var(--purple)","var(--green)","var(--orange)","var(--red)","var(--dim)","var(--muted)"];
+
+  return e("div",null,
+    e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",color:"var(--muted)",marginBottom:14,lineHeight:1.6}},
+      "Cities not in your comparison that score highest against your current weights. Click ",
+      e("strong",{style:{color:"var(--accent)"}},"+ Add"),
+      " to include one."
+    ),
+    candidates.map((c,i)=>e("div",{
+      key:c.city.city,
+      style:{background:"var(--surf)",border:"1px solid var(--border)",borderLeft:"3px solid "+(COLORS[i]||"var(--muted)"),borderRadius:"var(--r2)",padding:"13px 15px",marginBottom:9}
+    },
+      // Header row
+      e("div",{style:{display:"flex",alignItems:"center",gap:8,marginBottom:8}},
+        e("span",{style:{fontSize:16,flexShrink:0}},c.city.flag),
+        e("div",{style:{flex:1}},
+          e("div",{style:{fontWeight:700,fontSize:".9rem"}},c.city.city),
+          e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".6rem",color:"var(--muted)"}},c.city.country),
+        ),
+        e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".95rem",fontWeight:500,color:COLORS[i]||"var(--text)",marginRight:8}},
+          c.total.toFixed(1)
+        ),
+        e("button",{
+          style:{background:"rgba(232,255,71,.1)",border:"1px solid rgba(232,255,71,.35)",color:"var(--accent)",borderRadius:"var(--r)",padding:"5px 12px",cursor:"pointer",fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:".72rem",whiteSpace:"nowrap"},
+          onClick:()=>onAddCity&&onAddCity(c.city)
+        },"+ Add")
+      ),
+      // Similarity note
+      c.similar&&e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".6rem",color:"var(--blue)",marginBottom:6}},
+        "⟷ Similar profile to ",c.similar," in your list"
+      ),
+      // Top reasons
+      e("div",{style:{display:"flex",flexWrap:"wrap",gap:5}},
+        c.reasons.map(r=>e("div",{
+          key:r.label,
+          style:{fontFamily:"DM Mono,monospace",fontSize:".62rem",padding:"2px 8px",borderRadius:20,
+            background:r.score>=7.5?"rgba(77,255,145,.1)":"var(--surf2)",
+            border:"1px solid "+(r.score>=7.5?"rgba(77,255,145,.25)":"var(--border)"),
+            color:r.score>=7.5?"var(--green)":"var(--dim)"}
+        },
+          r.label," ",e("strong",null,r.score.toFixed(1)),
+          r.raw&&e("span",{style:{opacity:.6,marginLeft:3}}," · ",r.raw)
+        ))
+      )
+    ))
+  );
+}
+
 // ── Step 3: Output wrapper ───────────────────────────────────
-function OutputStep({ranked,allScoresMap,weights,setup}){
+function OutputStep({ranked,allScoresMap,weights,setup,liveData,onSetupChange}){
   const[tab,setTab]=useState("summary");
   return e("div",{className:"output-layout"},
     // Left: city cards
@@ -1710,16 +2181,23 @@ function OutputStep({ranked,allScoresMap,weights,setup}){
           )
         )
     ),
-    // Right: tabs — summary is default, no click needed
+    // Right: tabs
     e("div",{className:"output-right"},
       e("div",{className:"output-tabs"},
-        [["summary","📊 Summary"],["explain","💡 Explanations"],["sensitivity","📐 Sensitivity"],["metrics","🔬 Metrics"]].map(([id,lbl])=>
+        [["summary","📊 Summary"],["suggest","✨ Suggestions"],["explain","💡 Explanations"],["sensitivity","📐 Sensitivity"],["metrics","🔬 Metrics"]].map(([id,lbl])=>
           e("div",{key:id,className:"ot"+(tab===id?" active":""),onClick:()=>setTab(id)},lbl)
         )
       ),
       tab==="summary"&&(ranked.length
         ?e(SummaryPanel,{ranked,allScoresMap,weights})
         :e("div",{className:"onboard-empty"},e("div",{className:"big"},"📊"),"Add cities first")),
+      tab==="suggest"&&e(SuggestionsPanel,{setup,config,weights,liveData,onAddCity:city=>{
+        if(!setup.cities.find(c=>c.city===city.city)){
+          const newSetup={...setup,cities:[...setup.cities,city]};
+          // bubble up via prop
+          if(onSetupChange)onSetupChange(newSetup);
+        }
+      }}),
       tab==="explain"&&e(ExplanationsPanel,{ranked,allScoresMap,weights,setup}),
       tab==="sensitivity"&&e(SensitivityPanel,{ranked,allScoresMap,weights}),
       tab==="metrics"&&e(MetricsPanel,{ranked,allScoresMap})
@@ -1739,6 +2217,10 @@ function App(){
     allAnchors:[],familyAnchors:[],proximityAnchors:[],
     languages:[],tempMin:10,tempMax:25,
     currentCity:null,currentCityInput:"",
+    equityUsd:0,
+    profession:"Not specified",
+    hasChildren:false,
+    housingLocation:"city-center",
   });
   const[weights,setWeights]=useState(saved.weights||DEFAULT_WEIGHTS);
   const[liveData,setLiveData]=useState(saved.liveData||{});
@@ -1753,6 +2235,11 @@ function App(){
     languages:setup.languages,
     familyAnchors:setup.familyAnchors,
     proximityAnchors:setup.proximityAnchors,
+    equityEur:Math.round((setup.equityUsd||0)/1.08), // USD → EUR at ~1.08 rate
+    equityUsd:setup.equityUsd||0,
+    profession:setup.profession||"Not specified",
+    hasChildren:setup.hasChildren||false,
+    housingLocation:setup.housingLocation||"city-center",
   }),[setup]);
 
   const allScoresMap=useMemo(()=>{
@@ -1802,58 +2289,165 @@ function App(){
   },[setup.cities,setup.tempMin,setup.tempMax,fetching,setPill]);
 
   const canAdvance=[
-    setup.cities.length>=2,
-    true,
-    true
-  ];
-  // Block step 1→2 if anchors are set but don't sum to 100
-  const anchorTotal=(setup.allAnchors||[]).reduce((s,a)=>s+a.weight,0);
-  if(setup.allAnchors?.length>0&&anchorTotal!==100)canAdvance[0]=false;
-
-  const STEPS=[
-    {label:"1. Setup",icon:"⚙️"},
-    {label:"2. Priorities",icon:"⚖️"},
-    {label:"3. Results",icon:"📊"},
+    setup.cities.length>=2,  // screen 0
+    true,                     // screen 1
+    (setup.allAnchors||[]).length===0||(setup.allAnchors||[]).reduce((s,a)=>s+a.weight,0)===100, // screen 2
+    true,                     // screen 3
+    true,                     // screen 4 (priorities)
+    true,                     // screen 5 (results — always viewable)
   ];
 
-  return e("div",{className:"page"},
-    e("div",{className:"app-header"},
-      e("div",{style:{display:"flex",alignItems:"flex-start",justifyContent:"space-between",flexWrap:"wrap",gap:10,marginBottom:16}},
-        e("div",null,
-          e("h1",null,"Where should you ",e("span",{style:{color:"var(--accent)"}},"move?")),
-          e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".65rem",color:"var(--muted)",marginTop:4}},
-            "Data-driven relocation scoring · "+setup.cities.length+" cities · 17 metrics")
+  // Flat screens: 0-3 = setup, 4 = priorities, 5 = results
+  const SCREENS=[
+    {id:0, label:"Where & Who",   group:"Setup",      icon:"🏙️"},
+    {id:1, label:"About You",     group:"Setup",      icon:"🧑‍💼"},
+    {id:2, label:"People",        group:"Setup",      icon:"👥"},
+    {id:3, label:"Preferences",   group:"Setup",      icon:"🌡️"},
+    {id:4, label:"Priorities",    group:"Priorities", icon:"⚖️"},
+    {id:5, label:"Results",       group:"Results",    icon:"📊"},
+  ];
+
+  // Highest screen the user has been allowed to reach
+  const maxReached=useMemo(()=>{
+    let m=0;
+    for(let i=0;i<SCREENS.length-1;i++){
+      if(canAdvance[i])m=i+1; else break;
+    }
+    return m;
+  },[canAdvance.join(",")]);
+
+  const goNext=useCallback(()=>{
+    if(step===3){
+      // Setup → Priorities: trigger fetch
+      setStep(4);
+      setTimeout(()=>handleFetch(),100);
+    } else {
+      setStep(s=>Math.min(s+1,5));
+    }
+  },[step,handleFetch]);
+
+  const showFetchOverlay=step>=4&&fetching;
+
+  return e("div",{style:{display:"flex",height:"100vh",overflow:"hidden"}},
+
+    // ── SIDEBAR ───────────────────────────────────────────────
+    e("div",{style:{
+      width:210,flexShrink:0,background:"var(--surf)",borderRight:"1px solid var(--border)",
+      display:"flex",flexDirection:"column",height:"100vh",
+    }},
+      // Logo
+      e("div",{style:{padding:"22px 20px 18px",borderBottom:"1px solid var(--border)"}},
+        e("div",{style:{fontWeight:800,fontSize:"1.05rem",letterSpacing:"-.02em",lineHeight:1.2}},
+          "Where should",e("br",null),"you ",e("span",{style:{color:"var(--accent)"}},"move?")
         ),
-        e("div",{style:{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginTop:4}},
-          setup.currentCity&&e("span",{className:"tag"},"📍 ",setup.currentCity.flag," ",setup.currentCity.city),
-          setup.passports.map(p=>e("span",{key:p,className:"tag tag-y"},"🛂 ",p)),
-          setup.languages.slice(0,2).map(l=>e("span",{key:l,className:"tag"},"💬 ",l)),
-          setup.languages.length>2&&e("span",{className:"tag"},"+",setup.languages.length-2," more"),
-          (setup.allAnchors||[]).length>0&&e("span",{className:"tag tag-b"},"👥 ",(setup.allAnchors||[]).length," anchor"+(((setup.allAnchors||[]).length>1)?"s":"")),
-          e("button",{className:"btn btn-ghost btn-sm",onClick:()=>{if(window.confirm("Reset everything? This clears all your data.")){localStorage.removeItem(LS_KEY);location.reload();}}},"Reset")
+        e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".56rem",color:"var(--muted)",marginTop:5}},
+          CITY_DB.length+" cities · "+METRIC_DEFS.length+" metrics"
         )
       ),
-      e("div",{className:"step-bar"},
-        STEPS.map((s,i)=>e("div",{
-          key:i,
-          className:"step-item"+(step===i?" active":i<step?" done":""),
-          onClick:()=>{if(i<=step||(canAdvance[step]&&i===step+1))setStep(i);}
-        },
-          e("div",{className:"step-num"},i<step?"✓":i+1),
-          s.label
-        )),
-        e("div",{style:{flex:1}}),
-        step<2&&e("button",{
-          className:"btn btn-primary btn-sm",
-          disabled:!canAdvance[step],
-          onClick:()=>setStep(s=>s+1)
-        },step===1?"See Results →":"Next →"),
-        step>0&&e("button",{className:"btn btn-ghost btn-sm",style:{marginLeft:6},onClick:()=>setStep(s=>s-1)},"← Back")
+      // Nav items
+      e("div",{style:{flex:1,overflowY:"auto",padding:"10px 0"}},
+        // Group headers + items
+        [["Setup",[0,1,2,3]],["Priorities",[4]],["Results",[5]]].map(([group,ids])=>
+          e("div",{key:group,style:{marginBottom:4}},
+            e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".55rem",letterSpacing:".1em",textTransform:"uppercase",color:"var(--muted)",padding:"6px 20px 4px"}},group),
+            ids.map(id=>{
+              const s=SCREENS[id];
+              const isActive=step===id;
+              const isDone=step>id;
+              const isLocked=id>maxReached+1;
+              return e("div",{
+                key:id,
+                onClick:()=>{ if(!isLocked&&id<=maxReached+1) setStep(id); },
+                style:{
+                  display:"flex",alignItems:"center",gap:10,padding:"9px 20px",
+                  cursor:isLocked?"not-allowed":"pointer",
+                  background:isActive?"rgba(232,255,71,.08)":"transparent",
+                  borderLeft:"2px solid "+(isActive?"var(--accent)":isDone?"rgba(77,255,145,.4)":"transparent"),
+                  transition:"background .15s",
+                  opacity:isLocked?.35:1,
+                }
+              },
+                e("div",{style:{
+                  width:20,height:20,borderRadius:"50%",flexShrink:0,
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  fontSize:isDone?".65rem":".7rem",fontWeight:700,
+                  background:isDone?"var(--green)":isActive?"var(--accent)":"var(--border)",
+                  color:isDone||isActive?"var(--bg)":"var(--muted)",
+                }},isDone?"✓":s.icon),
+                e("div",{style:{fontSize:".78rem",fontWeight:isActive?700:400,color:isActive?"var(--accent)":isDone?"var(--green)":"var(--dim)"}},s.label)
+              );
+            })
+          )
+        )
+      ),
+      // Bottom: summary tags + reset
+      e("div",{style:{padding:"14px 16px",borderTop:"1px solid var(--border)",display:"flex",flexDirection:"column",gap:6}},
+        setup.currentCity&&e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".6rem",color:"var(--muted)"}},
+          "📍 ",setup.currentCity.flag," ",setup.currentCity.city
+        ),
+        setup.passports.length>0&&e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".6rem",color:"var(--muted)"}},
+          "🛂 ",setup.passports.join(" · ")
+        ),
+        setup.cities.length>0&&e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".6rem",color:"var(--accent)"}},
+          setup.cities.length," cit"+(setup.cities.length>1?"ies":"y")+" selected"
+        ),
+        e("button",{
+          style:{marginTop:4,background:"transparent",border:"1px solid var(--border)",color:"var(--muted)",borderRadius:"var(--r)",padding:"5px 10px",cursor:"pointer",fontFamily:"DM Mono,monospace",fontSize:".6rem",textAlign:"left"},
+          onClick:()=>{if(window.confirm("Reset everything?")){{localStorage.removeItem(LS_KEY);location.reload();}}}
+        },"↺ Reset everything")
       )
     ),
-    step===0&&e(SetupStep,{setup,onChange:setSetup,onFetch:handleFetch,fetching,pills}),
-    step===1&&e(PrioritiesStep,{weights,onChange:setWeights,ranked}),
-    step===2&&e(OutputStep,{ranked,allScoresMap,weights,setup})
+
+    // ── MAIN CONTENT ─────────────────────────────────────────
+    e("div",{style:{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}},
+
+      // Loading overlay
+      showFetchOverlay&&e("div",{style:{
+        position:"absolute",inset:0,background:"rgba(12,12,16,.94)",zIndex:1000,
+        display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14,
+      }},
+        e("div",{style:{fontSize:"2.5rem",animation:"spin 1.2s linear infinite"}},"⚡"),
+        e("div",{style:{fontFamily:"Syne,sans-serif",fontWeight:700,fontSize:"1.15rem",color:"var(--accent)"}},"Fetching live data…"),
+        e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".7rem",color:"var(--muted)",marginBottom:6}},"Weather · Air quality · Rent · Safety · Healthcare"),
+        e("div",{style:{display:"flex",gap:5,flexWrap:"wrap",justifyContent:"center",maxWidth:460}},
+          pills.map(p=>e("div",{key:p.id,className:"pill pill-"+p.state},e("div",{className:"pill-dot"+(p.state==="busy"?" blink":"")}),p.label))
+        ),
+        e("button",{className:"btn btn-ghost btn-sm",style:{marginTop:8},onClick:()=>setFetching(false)},"Skip & use estimates")
+      ),
+
+      // Screen content
+      !showFetchOverlay&&e("div",{style:{flex:1,overflowY:"auto"}},
+        step===0&&e(SetupStep,{setup,onChange:setSetup,screen:0}),
+        step===1&&e(SetupStep,{setup,onChange:setSetup,screen:1}),
+        step===2&&e(SetupStep,{setup,onChange:setSetup,screen:2}),
+        step===3&&e(SetupStep,{setup,onChange:setSetup,screen:3}),
+        step===4&&e(PrioritiesStep,{weights,onChange:setWeights,ranked}),
+        step===5&&e(OutputStep,{ranked,allScoresMap,weights,setup,liveData,onSetupChange:setSetup})
+      ),
+
+      // Bottom nav bar
+      !showFetchOverlay&&step<5&&e("div",{style:{
+        padding:"12px 28px",borderTop:"1px solid var(--border)",
+        display:"flex",alignItems:"center",justifyContent:"space-between",
+        background:"var(--surf)",flexShrink:0,
+      }},
+        e("div",{style:{fontFamily:"DM Mono,monospace",fontSize:".63rem",color:"var(--muted)"}},
+          step===0?"Add at least 2 cities to continue":
+          step===1?"Fill in what applies — all fields optional":
+          step===2?"Add people who matter — or skip":
+          step===3?"Set preferences — defaults are fine":
+          step===4?"Adjust weights, then see results →":""
+        ),
+        e("div",{style:{display:"flex",gap:8}},
+          step>0&&e("button",{className:"btn btn-ghost btn-sm",onClick:()=>setStep(s=>s-1)},"← Back"),
+          e("button",{
+            className:"btn btn-primary btn-sm",
+            disabled:!canAdvance[step]||fetching,
+            onClick:goNext,
+          },step===3?"Next — fetch live data ⚡":step===4?"See Results →":"Next →")
+        )
+      )
+    )
   );
 }
 
